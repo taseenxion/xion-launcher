@@ -13,18 +13,20 @@ const STATUSES = ['pending', 'approved', 'rejected', 'done']
 
 async function login (req, b) {
   const key = 'shop/rl/login-' + crypto.createHash('sha256').update(S.ip(req)).digest('hex').slice(0, 24) + '.json'
-  const r = await S.readJSON(key, { fails: 0, until: 0 })
+  // Best effort: if storage is not connected yet, logging in still works.
+  const r = await S.readJSON(key, { fails: 0, until: 0 }).catch(() => ({ fails: 0, until: 0 }))
+  const save = v => S.writeJSON(key, v).catch(() => {})
   if (r.until > Date.now()) return { status: 429, body: { error: `Too many wrong tries. Wait ${Math.ceil((r.until - Date.now()) / 60000)} min.` } }
   const userOk = S.safeEq(S.clean(b.user, 40).toLowerCase(), String(process.env.ADMIN_USER || '').toLowerCase())
   const passOk = S.checkPassword(S.clean(b.pass, 100))
   if (!userOk || !passOk) {
     r.fails = (r.fails || 0) + 1
     if (r.fails >= 5) { r.fails = 0; r.until = Date.now() + 15 * 60 * 1000 }
-    await S.writeJSON(key, r)
+    await save(r)
     await new Promise(res => setTimeout(res, 600))
     return { status: 401, body: { error: 'Wrong name or password.' } }
   }
-  await S.writeJSON(key, { fails: 0, until: 0 })
+  await save({ fails: 0, until: 0 })
   return { status: 200, body: { token: S.sign(process.env.ADMIN_USER) } }
 }
 
