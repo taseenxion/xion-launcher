@@ -9,6 +9,8 @@ import net.xion.client.XionConfig;
  * Xion FPS presets, picked in Xion Launcher (Settings → Performance):
  *   boost  (free)   fast graphics, no clouds, fewer particles, no entity shadows, sane distances
  *   turbo  (Xion+)  everything in boost plus the heavy iGPU savers
+ *   og     (free)   the old-client extremes on top of turbo: 6 chunks, 5 simulation distance,
+ *                   no chunk fade-in, 260 fps cap, half entity distance, no weather radius
  * A preset is applied once when the chosen mode changes, so players can still tweak options afterwards.
  */
 public final class Performance {
@@ -34,28 +36,30 @@ public final class Performance {
 			checked = true;
 			String m = mode();
 			if (!(m + REV).equals(XionConfig.data.perfApplied)) {
-				if (!m.equals("off")) apply(mc.options, m.equals("turbo"));
+				if (!m.equals("off")) apply(mc.options, m);
 				XionConfig.data.perfApplied = m + REV;
 				XionConfig.save();
 			}
 		}
 	}
 
-	private static void apply(Options o, boolean turbo) {
-		int rd = Math.min(renderDistance(o), turbo ? 8 : 10);
+	private static void apply(Options o, String mode) {
+		boolean og = mode.equals("og");
+		boolean turbo = mode.equals("turbo") || og;
+		int rd = Math.min(renderDistance(o), og ? 6 : turbo ? 8 : 10);
 		//#if MC >= 11900
 		//#if MC >= 12111
 		// The preset rewrites clouds, biome blend and more, so it must come first.
 		o.applyGraphicsPreset(net.minecraft.client.GraphicsPreset.FAST);
 		//#endif
 		o.renderDistance().set(rd);
-		o.simulationDistance().set(Math.min(o.simulationDistance().get(), turbo ? 6 : 8));
+		o.simulationDistance().set(Math.min(o.simulationDistance().get(), og ? 5 : turbo ? 6 : 8));
 		o.cloudStatus().set(CloudStatus.OFF);
 		o.entityShadows().set(false);
 		o.enableVsync().set(false);
-		o.framerateLimit().set(FPS_CAP);
+		o.framerateLimit().set(og ? 260 : FPS_CAP);
 		o.biomeBlendRadius().set(turbo ? 0 : 1);
-		o.entityDistanceScaling().set(turbo ? 0.75 : 1.0);
+		o.entityDistanceScaling().set(og ? 0.5 : turbo ? 0.75 : 1.0);
 		//#if MC >= 12111
 		o.improvedTransparency().set(false);
 		if (turbo) {
@@ -63,6 +67,7 @@ public final class Performance {
 			o.weatherRadius().set(Math.min(o.weatherRadius().get(), 5));
 			o.chunkSectionFadeInTime().set(0.0);
 		}
+		if (og) o.weatherRadius().set(0);
 		//#else
 		o.graphicsMode().set(net.minecraft.client.GraphicsStatus.FAST);
 		//#endif
@@ -85,9 +90,9 @@ public final class Performance {
 		o.renderClouds = CloudStatus.OFF;
 		o.entityShadows = false;
 		o.enableVsync = false;
-		o.framerateLimit = FPS_CAP;
+		o.framerateLimit = og ? 260 : FPS_CAP;
 		o.biomeBlendRadius = turbo ? 0 : 1;
-		o.entityDistanceScaling = turbo ? 0.75f : 1.0f;
+		o.entityDistanceScaling = og ? 0.5f : turbo ? 0.75f : 1.0f;
 		o.graphicsMode = net.minecraft.client.GraphicsStatus.FAST;
 		o.particles = turbo ? net.minecraft.client.ParticleStatus.MINIMAL : net.minecraft.client.ParticleStatus.DECREASED;
 		if (turbo) {

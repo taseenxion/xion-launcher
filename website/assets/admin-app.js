@@ -6,15 +6,32 @@
   const SYM = { USD: '$', BDT: '৳', INR: '₹' }
   const METHOD = { bkash: 'bKash', nagad: 'Nagad', upi: 'UPI', card: 'Card', free: 'Free code' }
   let token = sessionStorage.getItem('xa') || ''
+  let cosToken = sessionStorage.getItem('xac') || ''
   let orders = [], sel = null, filter = 'all', seen = null
+  let capeOrders = [], capeFilter = 'all', players = []
+  const warn = () => { $('#storeWarn').hidden = false }
 
   const toast = (t, bad) => { const el = $('#toast'); el.textContent = t; el.className = 'toast show' + (bad ? ' bad' : ''); clearTimeout(toast.t); toast.t = setTimeout(() => el.className = 'toast', 2200) }
   async function api (body) {
     const r = await fetch('/api/admin', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify(body) })
     const j = await r.json().catch(() => ({ error: 'Network error' }))
     if (r.status === 401 && body.action !== 'login') { logout(); throw new Error(j.error) }
-    if (!r.ok || j.error) throw new Error(j.error || 'Error')
+    if (!r.ok || j.error) { if (/not connected/i.test(j.error || '')) warn(); throw new Error(j.error || 'Error') }
     return j
+  }
+
+  // Cape store admin (same login, own session token)
+  async function cosApi (body) {
+    const r = await fetch('/api/cosmetics?r=admin', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + cosToken }, body: JSON.stringify(body) })
+    const j = await r.json().catch(() => ({ error: 'Network error' }))
+    if (r.status === 401 && body.action !== 'login') { cosToken = ''; sessionStorage.removeItem('xac'); throw new Error('Cape store: please log in again.') }
+    if (!r.ok || j.error) { if (/not connected/i.test(j.error || '')) warn(); throw new Error(j.error || 'Error') }
+    return j
+  }
+  async function cosLogin (user, pass) {
+    const r = await cosApi({ action: 'login', user, pass })
+    cosToken = r.token
+    sessionStorage.setItem('xac', cosToken)
   }
 
   // ---------- login ----------
@@ -25,6 +42,7 @@
     try {
       const r = await api({ action: 'login', user: $('#lUser').value, pass: $('#lPass').value })
       token = r.token; sessionStorage.setItem('xa', token)
+      try { await cosLogin($('#lUser').value, $('#lPass').value) } catch {}
       $('#lPass').value = ''
       start()
     } catch (err) { $('#lErr').textContent = err.message } finally { btn.disabled = false }
@@ -38,6 +56,8 @@
     $$('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === b.dataset.tab))
     if (b.dataset.tab === 'codes') loadCodes()
     if (b.dataset.tab === 'settings') loadSettings()
+    if (b.dataset.tab === 'capes') loadCapes()
+    if (b.dataset.tab === 'users') loadUsers()
   })
 
   // ---------- orders ----------
@@ -185,6 +205,81 @@
   $('#setForm').addEventListener('submit', async e => {
     e.preventDefault(); $('#sErr').textContent = ''
     try { await api({ action: 'saveSettings', bkash: $('#sBkash').value, nagad: $('#sNagad').value, upi: $('#sUpi').value, cardLink: $('#sCard').value, note: $('#sNote').value }); toast('Saved') } catch (err) { $('#sErr').textContent = err.message }
+  })
+
+  // ---------- cape orders ----------
+  async function loadCapes () {
+    $('#capeErr').textContent = ''
+    try { capeOrders = (await cosApi({ action: 'orders' })).orders || [] } catch (e) { $('#capeErr').textContent = e.message; capeOrders = [] }
+    renderCapes()
+  }
+  function renderCapes () {
+    const list = capeOrders.filter(o => capeFilter === 'all' || o.status === capeFilter)
+    $('#capeRows').innerHTML = list.length ? list.map(o => `<tr>
+      <td><b>${esc(o.ign)}</b></td>
+      <td class="muted">${esc((o.lines || []).map(l => l.name || l.id).join(', ') || '—')}</td>
+      <td>${SYM[o.currency] || ''}${o.amount}${o.code ? ` <small class="muted">${esc(o.code)}</small>` : ''}</td>
+      <td><span class="badge ${o.status}">${esc(o.status)}</span></td>
+      <td class="nowrap"><button class="mini" data-cape-ok="${o.id}">Approve</button>
+        <button class="mini" data-cape-no="${o.id}">Reject</button>
+        <button class="mini bad" data-cape-del="${o.id}">Delete</button></td></tr>`).join('')
+      : '<tr><td colspan="5" class="muted center">No cape orders yet</td></tr>'
+  }
+  $('#capeFilters').addEventListener('click', e => {
+    const b = e.target.closest('[data-cf]'); if (!b) return
+    capeFilter = b.dataset.cf; $$('#capeFilters button').forEach(x => x.classList.toggle('on', x === b)); renderCapes()
+  })
+  $('#capeRows').addEventListener('click', async e => {
+    const ok = e.target.closest('[data-cape-ok]'), no = e.target.closest('[data-cape-no]'), del = e.target.closest('[data-cape-del]')
+    try {
+      if (ok) { await cosApi({ action: 'update', id: ok.dataset.capeOk, status: 'approved' }); toast('Order approved — items unlocked'); }
+      if (no) { await cosApi({ action: 'update', id: no.dataset.capeNo, status: 'rejected' }); toast('Order rejected') }
+      if (del) {
+        if (!confirm('Delete this order? This cannot be undone.')) return
+        await cosApi({ action: 'deleteOrder', id: del.dataset.capeDel }); toast('Order deleted')
+      }
+      if (ok || no || del) loadCapes()
+    } catch (err) { $('#capeErr').textContent = err.message }
+  })
+
+  // ---------- users ----------
+  async function loadUsers () {
+    $('#userErr').textContent = ''
+    try { players = (await cosApi({ action: 'players' })).players || [] } catch (e) { $('#userErr').textContent = e.message; players = [] }
+    renderUsers()
+  }
+  function renderUsers () {
+    const q = ($('#userSearch').value || '').trim().toLowerCase()
+    const list = players.filter(p => !q || (p.display || p.name || '').toLowerCase().includes(q))
+    $('#userRows').innerHTML = list.length ? list.map(p => `<tr>
+      <td><b>${esc(p.display || p.name)}</b>${(p.gifts || []).length ? ' <small class="muted">gift</small>' : ''}</td>
+      <td>${(p.owned || []).length}</td>
+      <td class="muted">${esc(Object.values(p.equipped || {}).join(', ') || '—')}</td>
+      <td class="muted">${p.created ? new Date(p.created).toLocaleDateString() : '—'}</td>
+      <td class="nowrap"><button class="mini" data-grant="${esc(p.name)}">Grant</button>
+        <button class="mini" data-revoke="${esc(p.name)}">Revoke</button>
+        <button class="mini bad" data-reset="${esc(p.name)}">Reset key</button></td></tr>`).join('')
+      : '<tr><td colspan="5" class="muted center">No accounts yet</td></tr>'
+    return list
+  }
+  $('#userSearch').addEventListener('input', renderUsers)
+  $('#userRows').addEventListener('click', async e => {
+    const g = e.target.closest('[data-grant]'), r = e.target.closest('[data-revoke]'), rs = e.target.closest('[data-reset]')
+    try {
+      if (g) {
+        const item = prompt('Cape or cosmetic id to grant (e.g. an_sunrise, hw_bat_wings):'); if (!item) return
+        await cosApi({ action: 'grant', name: g.dataset.grant, item }); toast('Granted')
+      }
+      if (r) {
+        const item = prompt('Cape or cosmetic id to take back:'); if (!item) return
+        await cosApi({ action: 'revoke', name: r.dataset.revoke, item }); toast('Revoked')
+      }
+      if (rs) {
+        if (!confirm('Reset this account key? The player will need to sign in again.')) return
+        await cosApi({ action: 'resetKey', name: rs.dataset.reset }); toast('Key reset')
+      }
+      if (g || r || rs) loadUsers()
+    } catch (err) { $('#userErr').textContent = err.message }
   })
 
   // ---------- start ----------

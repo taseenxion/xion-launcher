@@ -1435,7 +1435,8 @@ $('#perfGrid').addEventListener('click', e => {
   }
   saveSettings({ perfMode: m })
   renderPerf()
-  toast(m === 'off' ? 'Performance preset off.' : (m === 'turbo' ? 'Turbo' : 'Boost') + ' mode set. It applies on next launch.', 'ok')
+  const names = { boost: 'Boost', turbo: 'Turbo', og: 'OG' }
+  toast(m === 'off' ? 'Performance preset off.' : names[m] + ' mode set. It applies on next launch.', 'ok')
 })
 
 async function loadThemes () {

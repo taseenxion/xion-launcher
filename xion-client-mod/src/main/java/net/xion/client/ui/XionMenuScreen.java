@@ -18,13 +18,13 @@ import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
-/** Right Shift menu: mods (logos, enable + settings), HUD modules, features, capes and your profile. */
+/** Right Shift menu: mods (logos, enable + settings), HUD modules, features, FPS tweaks, capes and your profile. */
 public class XionMenuScreen extends BaseScreen {
-	public enum Tab { MODS, HUD, FEATURES, CAPES, PROFILE, CROSSHAIR }
+	public enum Tab { MODS, HUD, FEATURES, FPS, CAPES, PROFILE, CROSSHAIR }
 
-	private static final Tab[] TABS = { Tab.MODS, Tab.HUD, Tab.FEATURES, Tab.CAPES, Tab.PROFILE };
+	private static final Tab[] TABS = { Tab.MODS, Tab.HUD, Tab.FEATURES, Tab.FPS, Tab.CAPES, Tab.PROFILE };
 	/** Crosshair editing is Xion+ only, so the tab only appears with a valid key. */
-	private static final Tab[] TABS_XP = { Tab.MODS, Tab.HUD, Tab.FEATURES, Tab.CAPES, Tab.CROSSHAIR, Tab.PROFILE };
+	private static final Tab[] TABS_XP = { Tab.MODS, Tab.HUD, Tab.FEATURES, Tab.FPS, Tab.CAPES, Tab.CROSSHAIR, Tab.PROFILE };
 
 	private static final int GAP = 6;
 	private static final int CARD_H = 34;
@@ -38,6 +38,7 @@ public class XionMenuScreen extends BaseScreen {
 	private final Screen parent;
 	private final CrosshairPanel crosshairPanel = new CrosshairPanel();
 	private final CosmeticsPanel cosmeticsPanel = new CosmeticsPanel();
+	private final FpsPanel fpsPanel = new FpsPanel();
 	private final ModsPanel modsPanel;
 	private Tab tab;
 	private int px, py, pw, ph, cols, cardW;
@@ -82,9 +83,16 @@ public class XionMenuScreen extends BaseScreen {
 		cardW = (contentW - (cols - 1) * GAP) / cols;
 
 		Tab[] tabs = net.xion.client.feature.Premium.active() ? TABS_XP : TABS;
-		String[] names = Pvp.active()
-			? (tabs.length == TABS_XP.length ? new String[]{"Mods", "PvP HUD", "Combat", "Capes", "Crosshair", "Profile"} : new String[]{"Mods", "PvP HUD", "Combat", "Capes", "Profile"})
-			: (tabs.length == TABS_XP.length ? new String[]{"Mods", "HUD Mods", "Features", "Capes", "Crosshair", "Profile"} : new String[]{"Mods", "HUD Mods", "Features", "Capes", "Profile"});
+		String[] names;
+		if (Pvp.active()) {
+			names = tabs.length == TABS_XP.length
+				? new String[]{"Mods", "PvP HUD", "Combat", "FPS", "Capes", "Crosshair", "Profile"}
+				: new String[]{"Mods", "PvP HUD", "Combat", "FPS", "Capes", "Profile"};
+		} else {
+			names = tabs.length == TABS_XP.length
+				? new String[]{"Mods", "HUD Mods", "Features", "FPS", "Capes", "Crosshair", "Profile"}
+				: new String[]{"Mods", "HUD Mods", "Features", "FPS", "Capes", "Profile"};
+		}
 		for (int i = 0; i < tabs.length; i++) {
 			Tab t = tabs[i];
 			XButton b = add(new XButton(px + 8, py + 34 + i * 24, sideW - 8, 20, names[i], XButton.Style.TAB, () -> switchTab(t)));
@@ -115,6 +123,7 @@ public class XionMenuScreen extends BaseScreen {
 	private int rowsHeight() {
 		if (tab == Tab.MODS) return modsPanel.height(contentW);
 		if (tab == Tab.CAPES) return cosmeticsPanel.height(contentW);
+		if (tab == Tab.FPS) return fpsPanel.height(contentW);
 		int n = currentToggles().size();
 		return ((n + cols - 1) / cols) * (CARD_H + GAP);
 	}
@@ -163,6 +172,7 @@ public class XionMenuScreen extends BaseScreen {
 			case PROFILE -> drawProfile(g, mx, my - oy, a);
 			case CROSSHAIR -> crosshairPanel.draw(g, contentX, contentY, contentW, a);
 			case CAPES -> cosmeticsPanel.draw(g, contentX, contentY, contentW, contentH, scroll, mx, my - oy, a);
+			case FPS -> fpsPanel.draw(g, contentX, contentY, contentW, contentH, scroll, mx, my - oy, a);
 			default -> drawToggles(g, mx, my - oy, a);
 		}
 		g.pop();
@@ -226,6 +236,7 @@ public class XionMenuScreen extends BaseScreen {
 	@Override
 	protected boolean click(double x, double y, int button) {
 		if (tab == Tab.CROSSHAIR) return crosshairPanel.click(x, y, button);
+		if (tab == Tab.FPS) return fpsPanel.click(x, y, contentX, contentY, contentW, scroll);
 		if (tab == Tab.CAPES) {
 			// Locked capes stay locked; the key is entered in Xion Launcher, not bought in game.
 			CosmeticsPanel.Click c = cosmeticsPanel.click(x, y, contentX, contentY, contentW, contentH, scroll);

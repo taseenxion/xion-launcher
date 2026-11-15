@@ -1,6 +1,6 @@
 {
   "name": "xion-launcher",
-  "version": "1.22.0",
+  "version": "1.23.0",
   "description": "Xion Launcher - premium Minecraft launcher (Vanilla, Fabric, Quilt, Paper servers)",
   "main": "main.js",
   "scripts": {

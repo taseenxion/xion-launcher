@@ -69,7 +69,18 @@ const ITEMS = [
   { id: 'xs_crown', name: 'Golden Crown', type: 'hat', model: 'crown', rarity: 'legendary', desc: 'Gold, rubies, and a lot of confidence.' },
   { id: 'xs_tophat', name: 'Top Hat', type: 'hat', model: 'tophat', rarity: 'common', desc: 'Very classy, slightly tall.' },
   { id: 'xs_cat_ears', name: 'Cat Ears', type: 'hat', model: 'cat', rarity: 'common', desc: 'Fluffy ears that twitch now and then.', animated: true },
-  { id: 'xs_heart_aura', name: 'Lovestruck', type: 'aura', model: 'hearts', rarity: 'rare', animated: true, desc: 'Little hearts float up around you.' }
+  { id: 'xs_heart_aura', name: 'Lovestruck', type: 'aura', model: 'hearts', rarity: 'rare', animated: true, desc: 'Little hearts float up around you.' },
+
+  // ── Anime Nocturne ── hand-painted, 8 frames each
+  { id: 'an_sakura', name: 'Sakura Dusk', type: 'cape', rarity: 'epic', frames: 8, set: 'anime', desc: 'Cherry boughs over a violet dusk, petals drifting the whole time.' },
+  { id: 'an_leafall', name: 'Autumn Fall', type: 'cape', rarity: 'epic', frames: 8, set: 'anime', desc: 'A dark wood in October with leaves coming down for good.' },
+  { id: 'an_neonrain', name: 'Neon Rain', type: 'cape', rarity: 'epic', frames: 8, set: 'anime', desc: 'A back street after midnight: magenta signs, cyan puddles, rain that never stops.' },
+  { id: 'an_moonwolf', name: 'Moonlit Wolf', type: 'cape', rarity: 'legendary', frames: 8, set: 'anime', desc: 'A wolf on the ridge under a huge moon, mist crawling past.' },
+  { id: 'an_starfall', name: 'Starfall', type: 'cape', rarity: 'epic', frames: 8, set: 'anime', desc: 'Midnight blue with meteors cutting across.' },
+  { id: 'an_ember', name: 'Ember Dusk', type: 'cape', rarity: 'rare', frames: 8, set: 'anime', desc: 'Burnt red sky, ash in the air, embers going up instead of down.' },
+  { id: 'an_tide', name: 'Moon Tide', type: 'cape', rarity: 'epic', frames: 8, set: 'anime', desc: 'Cold sea at night, wave crests rolling under a moon.' },
+  { id: 'an_eyes', name: 'Shadow Eyes', type: 'cape', rarity: 'legendary', frames: 8, set: 'anime', desc: 'Almost nothing, then two eyes open in the dark. Blinks on a loop.' },
+  { id: 'an_garden', name: 'Night Garden', type: 'cape', rarity: 'rare', frames: 8, set: 'anime', desc: 'Indigo garden, glowing flowers, fireflies between them.' }
 ]
 
 const SETS = [
@@ -79,7 +90,8 @@ const SETS = [
   { id: 'inferno', name: 'Inferno', tag: 'Hot', color: '#f97316', accent: '#dc2626', desc: 'Dragon wings, demon horns and rising embers.' },
   { id: 'neon', name: 'Neon City', tag: 'Animated', color: '#f0abfc', accent: '#22d3ee', desc: 'Synthwave grid, cyber visor and mech wings.' },
   { id: 'xion', name: 'Xion Originals', tag: 'Signature', color: '#f472b6', accent: '#7c3aed', desc: 'The Xion crest cloaks and void wings. Our signature look.' },
-  { id: 'sakura', name: 'Sakura Spring', tag: 'Pastel', color: '#f9a8d4', accent: '#86efac', desc: 'Blossoms, butterflies and drifting petals.' }
+  { id: 'sakura', name: 'Sakura Spring', tag: 'Pastel', color: '#f9a8d4', accent: '#86efac', desc: 'Blossoms, butterflies and drifting petals.' },
+  { id: 'anime', name: 'Anime Nocturne', tag: 'New', color: '#8b5cf6', accent: '#f472b6', desc: 'Nine hand-painted animated capes: sunrise over a torii gate, falling autumn leaves, neon rain, a moonlit wolf and more.' }
 ]
 
 // Bundles: all items of a set, about 40% off the separate prices.

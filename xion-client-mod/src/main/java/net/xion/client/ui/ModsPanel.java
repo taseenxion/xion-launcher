@@ -303,7 +303,12 @@ final class ModsPanel {
 		int c = cols(w), cw = cardW(w);
 		int iy = y + CHIPS_H - (int) scroll;
 		int index = 0;
-		for (Block b : blocks()) {
+		List<Block> blocks = blocks();
+		if (blocks.isEmpty()) {
+			g.text("No mods here yet.", x, y + CHIPS_H + 10, Colors.alpha(Colors.MUTED, a), false);
+			return;
+		}
+		for (Block b : blocks) {
 			if (iy + HEAD_H > y - 1 && iy < y + h + 1) header(g, b, x, iy, w, a);
 			iy += HEAD_H;
 			for (int i = 0; i < b.entries.size(); i++) {
@@ -447,7 +452,7 @@ final class ModsPanel {
 	Click click(double mx, double my, int x, int y, int w, int h, double scroll, Screen parent) {
 		if (mx < x || mx >= x + w || my < y || my >= y + h) return Click.NONE;
 		int chipY = y - (int) scroll;
-		if (my >= chipY && my < chipY + 14) {
+		if (chipY >= y - 1 && my >= chipY && my < chipY + 14) {
 			int cx = x;
 			for (Filter f : Filter.values()) {
 				int cw = net.minecraft.client.Minecraft.getInstance().font.width(chipLabel(f)) + 14;

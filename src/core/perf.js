@@ -2,11 +2,13 @@
 //   off    nothing changed
 //   boost  free: tuned G1 garbage collector, Sodium fast weather; in game, the Xion Client applies the Boost preset
 //   turbo  Xion+: low-pause GC tuning, Sodium fast leaves/weather; in game, the Turbo preset
+//   og     free: everything Turbo does, plus the "old client" extremes — 6 chunks, no fade-in,
+//           one frame of render-ahead, GC tuned for short pauses; in game, the OG preset
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
 
-const MODES = ['off', 'boost', 'turbo']
+const MODES = ['off', 'boost', 'turbo', 'og']
 
 const effective = (mode, premium) => {
   const m = MODES.includes(mode) ? mode : 'boost'
@@ -29,10 +31,22 @@ const TURBO_JVM = [
   '-XX:SurvivorRatio=32',
   '-XX:+PerfDisableSharedMem'
 ]
+// OG: the same collector pushed towards very short pauses, which is what keeps frame times flat
+// on old laptops. Small eden, aggressive region cleanup, no heap pre-touch tricks.
+const OG_JVM = [
+  ...TURBO_JVM,
+  '-XX:MaxGCPauseMillis=20',
+  '-XX:G1HeapWastePercent=5',
+  '-XX:G1MixedGCLiveThresholdPercent=90',
+  '-XX:G1RSetUpdatingPauseTimePercent=5',
+  '-XX:MaxTenuringThreshold=1',
+  '-XX:+UseStringDeduplication'
+]
 
 // GC flags for the mode, unless the player picked their own collector in Java arguments.
 function jvmArgs (mode, userArgs) {
   if (mode === 'off' || userArgs.some(a => /^-XX:\+Use\w+GC$/.test(a))) return []
+  if (mode === 'og') return [...BASE_JVM, ...OG_JVM]
   return mode === 'turbo' ? [...BASE_JVM, ...TURBO_JVM] : BASE_JVM
 }
 
@@ -55,7 +69,11 @@ function prepareGame (gameDir, mode) {
       cfg.performance.always_defer_chunk_updates_v2 = false
       // Sodium queues up to 3 frames by default; on integrated graphics that makes keys feel late. 1 = lowest input lag.
       cfg.advanced = { ...(cfg.advanced || {}), cpu_render_ahead_limit: 1 }
-      if (mode === 'turbo') Object.assign(cfg.quality, { leaves_quality: 'FAST', enable_vignette: false })
+      if (mode === 'turbo' || mode === 'og') Object.assign(cfg.quality, { leaves_quality: 'FAST', enable_vignette: false })
+      if (mode === 'og') {
+        Object.assign(cfg.performance, { use_compact_vertex_format: true, use_entity_culling: true })
+        cfg.advanced = { ...(cfg.advanced || {}), cpu_render_ahead_limit: 1, allow_direct_memory_access: true }
+      }
       fs.writeFileSync(file, JSON.stringify(cfg, null, 2))
     } catch {}
   }

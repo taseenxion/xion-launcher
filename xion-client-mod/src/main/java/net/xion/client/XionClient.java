@@ -25,7 +25,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 
 public class XionClient implements ClientModInitializer {
 	public static final String MOD_ID = "xionclient";
-	public static final String VERSION = "1.22.0";
+	public static final String VERSION = "1.23.0";
 	private static final int KEY_RIGHT_SHIFT = 344;
 
 	private static KeyMapping menuKey;
@@ -84,6 +84,7 @@ public class XionClient implements ClientModInitializer {
 			net.xion.client.feature.StoreCosmetics.tick(mc);
 			Features.tick(mc);
 			net.xion.client.feature.Performance.tick(mc);
+			net.xion.client.feature.FpsTweaks.tick(mc);
 			if (PREVIEW) previewTick();
 		});
 	}
