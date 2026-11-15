@@ -115,7 +115,7 @@ async function launch (profileId, opts, emit) {
       overrides: { gameDirectory: gameDir, cwd: gameDir, detached: false, maxSockets: 32 }
     }
     // Quick Play starts at 1.20; older versions join a server with --server/--port.
-    const minor = Number((game.match(/^1.(d+)/) || [])[1])
+    const minor = Number((game.match(/^1\.(\d+)/) || [])[1])
     if (opts && opts.server && minor < 20) {
       const [host, port] = String(opts.server).split(':')
       options.server = { host, port: port || '25565' }

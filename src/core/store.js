@@ -54,8 +54,15 @@ function dec (s) {
 function load () {
   fs.mkdirSync(ROOT, { recursive: true })
   const base = defaults()
+  let raw
   try {
-    const raw = JSON.parse(fs.readFileSync(FILE, 'utf8'))
+    raw = JSON.parse(fs.readFileSync(FILE, 'utf8'))
+  } catch {
+    // Corrupt or half-written file: recover the last good save instead of resetting accounts
+    // and profiles back to defaults.
+    try { raw = JSON.parse(fs.readFileSync(FILE + '.bak', 'utf8')) } catch { return (data = base) }
+  }
+  try {
     data = { ...base, ...raw, settings: { ...base.settings, ...(raw.settings || {}) } }
     data.accounts = (data.accounts || []).map(a => ({ ...a, refresh: dec(a.refresh) }))
     // v1.17: the first-run intro is for new players; people who already have an account skip it.
@@ -111,7 +118,19 @@ function load () {
 
 function save () {
   const out = { ...data, accounts: data.accounts.map(a => ({ ...a, refresh: enc(a.refresh) })) }
-  fs.writeFileSync(FILE, JSON.stringify(out, null, 2))
+  const json = JSON.stringify(out, null, 2)
+  fs.mkdirSync(ROOT, { recursive: true })
+  // Write to a temp file and rename, so a crash or full disk mid-write can't truncate launcher.json.
+  // Then keep a .bak copy of the last good save to recover from external corruption.
+  const tmp = FILE + '.tmp'
+  try {
+    fs.writeFileSync(tmp, json)
+    fs.renameSync(tmp, FILE)
+    try { fs.copyFileSync(FILE, FILE + '.bak') } catch {}
+  } catch (e) {
+    try { fs.unlinkSync(tmp) } catch {}
+    throw e
+  }
 }
 
 function get () { return data || load() }

@@ -213,7 +213,9 @@ function list (modsDir) {
   const managed = new Set(readManifest(modsDir).files)
   return fs.readdirSync(modsDir)
     .filter(f => /\.jar(\.disabled)?$/i.test(f))
-    .map(f => ({ file: f, enabled: !f.endsWith('.disabled'), managed: managed.has(f), size: fs.statSync(path.join(modsDir, f)).size }))
+    // The manifest stores base filenames, so a managed mod we switched off (`name.jar.disabled`)
+    // must still count as ours, not as something the player dropped in.
+    .map(f => ({ file: f, enabled: !f.endsWith('.disabled'), managed: managed.has(f.replace(/\.disabled$/i, '')), size: fs.statSync(path.join(modsDir, f)).size }))
     .sort((a, b) => a.managed - b.managed || a.file.localeCompare(b.file))
 }
 

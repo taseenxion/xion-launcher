@@ -5,7 +5,7 @@
  * Automates:
  * 1. Verification of all build artifacts in dist/ (Windows .exe, Linux .deb, AppImage, tar.gz, latest.yml)
  * 2. GitHub Release creation (v<version>) with all binaries and release notes attached
- *    -> This immediately triggers the auto-updater for all preinstalled launchers (v1.17.0 etc.) on other laptops.
+ *    -> This immediately triggers the auto-updater for all preinstalled launchers on other laptops.
  * 3. Website deployment to Vercel (target: xionx.vercel.app)
  * 
  * Usage:
@@ -241,6 +241,36 @@ async function publishGithubRelease () {
   return true
 }
 
+// The website hardcodes the download links to one release, so bump them to this version before
+// deploying — otherwise the download buttons keep handing out the previous build.
+function syncWebsiteDownloads (websiteDir) {
+  const files = ['index.html', 'main.js'].map(f => path.join(websiteDir, f)).filter(f => fs.existsSync(f))
+  let previous = null
+  for (const file of files) {
+    const m = fs.readFileSync(file, 'utf8').match(/releases\/download\/v(\d+\.\d+\.\d+)\//)
+    if (m) { previous = m[1]; break }
+  }
+  if (!previous) {
+    console.warn('Could not find an existing download link in the website; leaving links untouched.')
+    return
+  }
+  if (previous === ver) {
+    console.log(`Website download links already point at ${tag}.`)
+    return
+  }
+  for (const file of files) {
+    const src = fs.readFileSync(file, 'utf8')
+    const out = src.split(previous).join(ver)
+    if (out === src) continue
+    if (isDryRun) {
+      console.log(`[DRY-RUN] Would update ${path.relative(ROOT, file)}: v${previous} -> ${tag}`)
+      continue
+    }
+    fs.writeFileSync(file, out)
+    console.log(`Updated download links in ${path.relative(ROOT, file)}: v${previous} -> ${tag}`)
+  }
+}
+
 async function deployWebsite () {
   if (skipVercel) {
     console.log('\nSkipping Vercel deployment (--skip-vercel).')
@@ -252,6 +282,8 @@ async function deployWebsite () {
     console.warn('website/ directory not found.')
     return
   }
+
+  syncWebsiteDownloads(websiteDir)
 
   if (isDryRun) {
     console.log('[DRY-RUN] Would deploy website/ to Vercel.')
@@ -273,10 +305,10 @@ async function main () {
     const githubSuccess = await publishGithubRelease()
     await deployWebsite()
     console.log('\n\x1b[32m====================================================\x1b[0m')
-    console.log('\x1b[32m== Xion Launcher 1.18.0 Release Process Complete! ==\x1b[0m')
+    console.log(`\x1b[32m== Xion Launcher ${ver} Release Process Complete! ==\x1b[0m`)
     console.log('\x1b[32m====================================================\x1b[0m')
-    console.log('All installed launchers (v1.10 - v1.17) will automatically detect')
-    console.log('v1.18.0 and update on their next launch or 3-hour check.')
+    console.log(`All installed launchers will automatically detect ${tag}`)
+    console.log('and update on their next launch or 3-hour check.')
   } catch (err) {
     console.error('\x1b[31mRelease failed:\x1b[0m', err.message)
     process.exit(1)

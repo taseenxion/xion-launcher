@@ -32,27 +32,37 @@ function robustLookup (hostname, options, callback) {
   if (typeof options === 'function') { callback = options; options = {} }
   if (typeof options === 'number') options = { family: options }
   options = options || {}
+  // Callers that ask for one address family (IPv4-only servers, undici's default) must not get
+  // handed an address of the other family.
+  const want = options.family === 4 || options.family === 6 ? options.family : 0
+  const key = hostname + '|' + want
+  const pick = addrs => (want ? addrs.filter(a => a.family === want) : addrs)
   let finished = false
+  let timer = null
   const finish = (err, addrs) => {
     if (finished) return
     finished = true
-    if (err || !addrs || !addrs.length) {
-      const cached = lastGood.get(hostname)
-      if (cached) addrs = cached
+    clearTimeout(timer)
+    addrs = pick(addrs || [])
+    if (err || !addrs.length) {
+      const cached = pick(lastGood.get(key) || [])
+      if (cached.length) addrs = cached
       else return callback(err || Object.assign(new Error('getaddrinfo ENOTFOUND ' + hostname), { code: 'ENOTFOUND', hostname }))
     } else {
-      lastGood.set(hostname, addrs)
+      lastGood.set(key, addrs)
     }
     if (options.all) callback(null, addrs)
     else callback(null, addrs[0].address, addrs[0].family)
   }
   const fallback = () => {
+    if (want === 6) return resolver.resolve6(hostname, (err6, ips6) => finish(err6, (ips6 || []).map(address => ({ address, family: 6 }))))
     resolver.resolve4(hostname, (err, ips) => {
       if (!err && ips && ips.length) return finish(null, ips.map(address => ({ address, family: 4 })))
+      if (want === 4) return finish(err, [])
       resolver.resolve6(hostname, (err6, ips6) => finish(err6 || err, (ips6 || []).map(address => ({ address, family: 6 }))))
     })
   }
-  const timer = setTimeout(fallback, 2500)
+  timer = setTimeout(fallback, 2500)
   systemLookup(hostname, { ...options, all: true }, (err, addrs) => {
     if (finished) return
     clearTimeout(timer)
@@ -85,24 +95,37 @@ function configureChromiumDns (app) {
   } catch {}
 }
 
-function hedged (primary, secondary, delayMs) {
+function hedged (primary, secondary, delayMs, timeoutMs = 25000) {
   return new Promise((resolve, reject) => {
     let secondStarted = false
     let failures = 0
     let settled = false
-    const ok = r => { if (!settled) { settled = true; resolve(r) } }
+    let hedge = null
+    let deadline = null
+    const done = () => { settled = true; clearTimeout(hedge); clearTimeout(deadline) }
+    const ok = r => { if (!settled) { done(); resolve(r) } }
     const fail = e => {
+      if (settled) return
       failures++
       if (!secondStarted) startSecond()
-      else if (failures >= 2 && !settled) { settled = true; reject(e) }
+      else if (failures >= 2) { done(); reject(e) }
     }
     const startSecond = () => {
       if (secondStarted) return
       secondStarted = true
+      clearTimeout(hedge)
       secondary().then(ok, fail)
     }
+    // Both stacks can hang without ever erroring, so cap the wait: a stalled request fails loudly
+    // instead of freezing the launcher. Only time-to-response is bounded — once the headers arrive
+    // the promise resolves and body/download streaming is unaffected.
+    deadline = setTimeout(() => {
+      if (settled) return
+      done()
+      reject(new Error(`Request timed out after ${Math.round(timeoutMs / 1000)}s`))
+    }, timeoutMs)
+    hedge = setTimeout(startSecond, delayMs)
     primary().then(ok, fail)
-    setTimeout(startSecond, delayMs)
   })
 }
 

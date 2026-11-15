@@ -608,10 +608,18 @@ xion.on('launch:status', s => {
   renderSteps(s.phase)
   setLaunchState('busy', s.phase === 'starting' ? 'Starting' : 'Launching', s.text, s.progress)
 })
-xion.on('launch:closed', ({ code }) => {
+xion.on('launch:closed', async ({ code }) => {
   setLaunchState('idle')
   logLine(`[Xion] Game exited with code ${code}`)
   if (code && code !== 0) toast(`Minecraft exited with code ${code}. See Console for details.`, 'err')
+  // Playtime, launch count and last-played were saved by the main process before this event, so
+  // pull them in instead of showing yesterday's numbers until the launcher restarts.
+  try {
+    const st = await xion.call('state:get')
+    state.profiles = st.profiles
+    state.selectedProfile = st.selectedProfile
+    renderPlayerStats()
+  } catch {}
 })
 
 /* ---------------- Xion PvP mode ---------------- */
@@ -1247,15 +1255,7 @@ $('#capeGrid').addEventListener('mouseover', e => {
   b.addEventListener('mouseleave', () => { clearInterval(iv); delete b.dataset.playing; b.style.backgroundImage = `url('${capeFile(c)}')` }, { once: true })
 })
 
-async function initPlayer () {
-  const acc = activeAccount()
-  const v = ensureViewer()
-  if (v) v.renderPaused = false
-  const name = acc ? acc.name : 'Guest'
-  $('#ppName').textContent = name
-  $('#tagName').textContent = name
-  $('#ppType').textContent = acc ? (acc.type === 'microsoft' ? 'Microsoft account' : 'Offline account') : 'Not signed in'
-  $('#ppType').className = 'pill ' + (acc && acc.type === 'microsoft' ? 'ms' : '')
+function renderPlayerStats () {
   const total = state.profiles.reduce((t, p) => t + (p.playtime || 0), 0)
   const launches = state.profiles.reduce((t, p) => t + (p.launches || 0), 0)
   const last = state.profiles.filter(p => p.lastPlayed).sort((a, b) => b.lastPlayed - a.lastPlayed)[0]
@@ -1265,6 +1265,18 @@ async function initPlayer () {
     ['Profiles', state.profiles.length],
     ['Last played', last ? esc(last.name) : '—']
   ].map(([k, val]) => `<div class="stat"><small>${k}</small><b>${val}</b></div>`).join('')
+}
+
+async function initPlayer () {
+  const acc = activeAccount()
+  const v = ensureViewer()
+  if (v) v.renderPaused = false
+  const name = acc ? acc.name : 'Guest'
+  $('#ppName').textContent = name
+  $('#tagName').textContent = name
+  $('#ppType').textContent = acc ? (acc.type === 'microsoft' ? 'Microsoft account' : 'Offline account') : 'Not signed in'
+  $('#ppType').className = 'pill ' + (acc && acc.type === 'microsoft' ? 'ms' : '')
+  renderPlayerStats()
   $('#skinNote').textContent = !acc ? 'Add an account to set a skin.'
     : acc.type === 'microsoft' ? 'Uploads go straight to your Minecraft account — everyone sees them on every server.'
       : 'Offline skin: applied by Xion Client so you see it in game (others see the default skin).'
@@ -1367,7 +1379,7 @@ $('#newsAll').addEventListener('click', () => xion.call('open:external', 'https:
 /* ---------------- Boot ---------------- */
 /* ---------------- Themes + Xion Premium ---------------- */
 const themeState = { themes: [], current: 'nightfall', premium: false, owner: null }
-const PREMIUM_URL = 'https://taseenxion.github.io/xion-launcher/#premium'
+const PREMIUM_URL = 'https://xionx.vercel.app/#premium'
 
 // Applies a theme to the whole launcher: palette variables + backdrop layers, with a quick crossfade.
 function applyTheme (id, animate) {
