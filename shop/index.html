@@ -20,9 +20,14 @@
       <a href="#capes">Capes</a>
       <a href="#sets">Sets</a>
       <a href="#plus">Xion+</a>
+      <a href="#vault" id="vaultLink">Locker</a>
       <a href="#how">How it works</a>
     </nav>
-    <a class="btn small" href="#plus">Get Xion+</a>
+    <div class="nav-acts">
+      <button class="nav-btn" id="ordersBtn" aria-label="My orders"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/></svg><span>Orders</span></button>
+      <button class="nav-btn" id="cartBtn" aria-label="Cart"></button>
+      <a class="btn small" href="#plus">Get Xion+</a>
+    </div>
   </header>
 
   <main id="top">
@@ -120,9 +125,28 @@
             <li>Chroma colours and badge</li>
             <li>Works offline, one device</li>
           </ul>
-          <a class="btn big" href="https://xionx.vercel.app/#download">Get Xion Launcher<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-          <p class="fine">Buy inside the launcher: bKash, Nagad, UPI or card. Your key arrives with the order.</p>
+          <button class="btn big" id="buyPlus" style="width:100%;justify-content:center">Buy Xion+<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+          <a class="btn ghost" href="https://xionx.vercel.app/#download" style="width:100%;justify-content:center;margin-top:8px">Get Xion Launcher</a>
+          <p class="fine">Pay by bKash, Nagad, UPI or card and send the transaction ID with a screenshot. We approve it by hand and your key appears on your order page.</p>
         </div>
+      </div>
+    </section>
+
+    <!-- ── vault ── -->
+    <section class="vault" id="vault">
+      <div class="head reveal">
+        <span class="tag">Your locker</span>
+        <h2>The key you get.<br><span class="dim">Paste it here, wear it in game.</span></h2>
+      </div>
+      <div class="vault-box reveal">
+        <form id="vaultForm" class="vault-login">
+          <label>Minecraft name<input name="name" maxlength="16" placeholder="Steve" spellcheck="false" autocomplete="off"></label>
+          <label>Locker key<input name="key" maxlength="40" placeholder="XS-XXXX-XXXX-XXXX" spellcheck="false" autocomplete="off"></label>
+          <button class="btn" type="submit">Open my locker<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+          <p class="err" id="vaultErr"></p>
+          <p class="fine">Your key is on your order page as soon as the payment is approved. Nothing to install: every Xion Client player sees what you wear here.</p>
+        </form>
+        <div id="vaultMain" hidden></div>
       </div>
     </section>
 
@@ -156,5 +180,6 @@
   </div>
 
   <script src="app.js"></script>
+  <script src="store.js"></script>
 </body>
 </html>
