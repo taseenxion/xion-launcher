@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Xion Shop — capes, cosmetics and Xion+</title>
+  <meta name="description" content="Every Xion cape in one place: hand-painted animated capes, hats, wings and auras, plus everything Xion+ unlocks. Seen in game by every Xion Client player.">
+  <meta name="theme-color" content="#06080d">
+  <link rel="icon" href="assets/logo.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="cursor-glow" aria-hidden="true"></div>
+  <div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="grain" aria-hidden="true"></div>
+
+  <header class="nav" id="nav">
+    <a class="brand" href="#top"><img src="assets/logo.png" alt=""><b>Xion <em>Shop</em></b></a>
+    <nav>
+      <a href="#capes">Capes</a>
+      <a href="#sets">Sets</a>
+      <a href="#plus">Xion+</a>
+      <a href="#how">How it works</a>
+    </nav>
+    <a class="btn small" href="#plus">Get Xion+</a>
+  </header>
+
+  <main id="top">
+    <!-- ── hero ── -->
+    <section class="hero">
+      <div class="hero-copy reveal">
+        <span class="tag"><i class="dot"></i> 136 capes · 8-frame animation · seen in game</span>
+        <h1>Wear something<br><span class="grad">nobody else has.</span></h1>
+        <p class="lede">Hand-painted capes that move: sunrise over a torii gate, autumn leaves coming down, neon rain at midnight. Every Xion Client player sees them — on your back and on your elytra.</p>
+        <div class="cta">
+          <a class="btn big" href="#capes">Browse the capes<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+          <a class="btn ghost" href="#plus">What Xion+ adds</a>
+        </div>
+        <ul class="stats">
+          <li><b data-count="136">0</b><span>capes</span></li>
+          <li><b data-count="12">0</b><span>animated sets</span></li>
+          <li><b data-count="8">0</b><span>frames each</span></li>
+        </ul>
+      </div>
+
+      <div class="hero-stage reveal">
+        <div class="float-card fc1" data-tilt>
+          <img id="heroA" src="assets/capes/an_moonwolf_0.png" alt="Moonlit Wolf cape">
+          <span class="fc-tag">Moonlit Wolf</span>
+        </div>
+        <div class="float-card fc2" data-tilt>
+          <img id="heroB" src="assets/capes/an_sunrise_0.png" alt="Sunrise Torii cape">
+          <span class="fc-tag">Sunrise Torii</span>
+        </div>
+        <div class="float-card fc3" data-tilt>
+          <img id="heroC" src="assets/capes/an_neonrain_2.png" alt="Neon Rain cape">
+          <span class="fc-tag">Neon Rain</span>
+        </div>
+        <div class="hero-ring" aria-hidden="true"></div>
+      </div>
+    </section>
+
+    <div class="marquee" aria-hidden="true">
+      <div class="marquee-track">
+        <span>ANIME NOCTURNE</span><i></i><span>8 FRAMES PER CAPE</span><i></i><span>ELYRA MATCHES</span><i></i>
+        <span>NO MODS NEEDED</span><i></i><span>136 CAPES</span><i></i><span>SEEN IN GAME</span><i></i>
+        <span>ANIME NOCTURNE</span><i></i><span>8 FRAMES PER CAPE</span><i></i><span>ELYRA MATCHES</span><i></i>
+        <span>NO MODS NEEDED</span><i></i><span>136 CAPES</span><i></i><span>SEEN IN GAME</span><i></i>
+      </div>
+    </div>
+
+    <!-- ── capes ── -->
+    <section class="capes" id="capes">
+      <div class="head reveal">
+        <span class="tag">The locker</span>
+        <h2>Every cape, moving.<br><span class="dim">Hover to slow them down. Click to see it big.</span></h2>
+      </div>
+      <div class="controls reveal">
+        <div class="chips" id="chips"></div>
+        <label class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></svg><input id="search" placeholder="Search 136 capes…" autocomplete="off"></label>
+      </div>
+      <div class="grid" id="grid"></div>
+      <p class="empty" id="empty" hidden>Nothing matches that.</p>
+      <p class="count" id="count"></p>
+    </section>
+
+    <!-- ── sets ── -->
+    <section class="sets" id="sets">
+      <div class="head reveal">
+        <span class="tag">Collections</span>
+        <h2>Whole worlds,<br><span class="dim">eight frames at a time.</span></h2>
+      </div>
+      <div class="set-grid" id="setGrid"></div>
+    </section>
+
+    <!-- ── Xion+ ── -->
+    <section class="plus" id="plus">
+      <div class="plus-inner">
+        <div class="plus-copy reveal">
+          <span class="tag gold">Xion+</span>
+          <h2>One key.<br><span class="grad-gold">Everything unlocked.</span></h2>
+          <p class="lede">Xion+ is a one-time purchase tied to your device, not a subscription. It unlocks the animated cosmetics, the Turbo preset and the little things that make the client feel like yours.</p>
+          <ul class="feat">
+            <li><i>✦</i><div><b>Every animated cape</b><span>All 136 capes plus hats, wings and auras — or upload your own 256×128 cape.</span></div></li>
+            <li><i>⚡</i><div><b>Turbo preset</b><span>The max-FPS graphics preset for iGPUs, on top of the free Boost and OG modes.</span></div></li>
+            <li><i>🎨</i><div><b>Chroma colours</b><span>Cycling rainbow on HUD text and modules, on top of the Xion themes.</span></div></li>
+            <li><i>🛡</i><div><b>Xion+ badge</b><span>The badge next to your name in the tab list and F5, so people know.</span></div></li>
+            <li><i>⚙</i><div><b>Premium module settings</b><span>The extra options inside HUD modules and the crosshair editor.</span></div></li>
+            <li><i>↻</i><div><b>Update priority</b><span>New cosmetics and presets land on your device the moment a build is out.</span></div></li>
+          </ul>
+        </div>
+        <div class="price-card reveal" data-tilt>
+          <div class="ribbon">One-time</div>
+          <h3>Xion+</h3>
+          <p class="price"><b>$5</b><span>or ৳150 · ₹350</span></p>
+          <ul>
+            <li>Every cape, hat, wing and aura</li>
+            <li>Custom cape upload</li>
+            <li>Turbo preset + OG extras</li>
+            <li>Chroma colours and badge</li>
+            <li>Works offline, one device</li>
+          </ul>
+          <a class="btn big" href="https://xionx.vercel.app/#download">Get Xion Launcher<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+          <p class="fine">Buy inside the launcher: bKash, Nagad, UPI or card. Your key arrives with the order.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── how ── -->
+    <section class="how" id="how">
+      <div class="head reveal">
+        <span class="tag">Three steps</span>
+        <h2>From here to wearing it.</h2>
+      </div>
+      <ol class="steps">
+        <li class="reveal"><b>01</b><h3>Install Xion</h3><p>Download the launcher for Windows or Linux and pick any version from 1.18 to 26.3.</p></li>
+        <li class="reveal"><b>02</b><h3>Pick a cape</h3><p>Launcher → Cosmetics, or Right Shift → Cosmetics in game. The Anime chip is the new set.</p></li>
+        <li class="reveal"><b>03</b><h3>Press play</h3><p>It shows on your back and your elytra instantly, and stays picked on every launch.</p></li>
+      </ol>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="foot-brand"><img src="assets/logo.png" alt=""><b>Xion</b><span>Nightfall client</span></div>
+    <nav>
+      <a href="https://xionx.vercel.app/">Main site</a>
+      <a href="https://github.com/taseenxion/xion-launcher/releases/latest">Releases</a>
+      <a href="https://xionx.vercel.app/admin">Admin</a>
+    </nav>
+    <p>Not affiliated with Mojang or Microsoft.</p>
+  </footer>
+
+  <div class="lightbox" id="lightbox" hidden>
+    <button class="lb-close" id="lbClose" aria-label="Close">✕</button>
+    <figure><img id="lbImg" alt=""><figcaption id="lbCap"></figcaption></figure>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
