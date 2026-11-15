@@ -330,31 +330,6 @@ app.whenReady().then(() => {
     return shell.openPath(dir)
   })
 
-  // Xion Store (cosmetics) API on the Xion website. Runs here so the renderer keeps a strict CSP.
-  handle('cos:api', async (route, body, token) => {
-    if (!/^(shop|locker|wear|admin)$/.test(String(route))) throw new Error('Unknown store route')
-    const url = 'https://xionx.vercel.app/api/cosmetics?r=' + route + (body && body.query ? '&' + new URLSearchParams(body.query) : '')
-    const post = body && !body.query
-    const ctrl = new AbortController()
-    const t = setTimeout(() => ctrl.abort(), 30000)
-    try {
-      const r = await fetch(url, {
-        method: post ? 'POST' : 'GET',
-        signal: ctrl.signal,
-        headers: { 'Content-Type': 'application/json', 'User-Agent': 'XionLauncher/' + app.getVersion(), ...(token ? { Authorization: 'Bearer ' + token } : {}) },
-        body: post ? JSON.stringify(body) : undefined
-      })
-      let data = {}
-      try { data = await r.json() } catch {}
-      if (!r.ok) throw new Error(data.error || `Store is not reachable right now (${r.status}).`)
-      return data
-    } catch (e) {
-      if (e.name === 'AbortError') throw new Error('The store took too long to answer. Try again.')
-      if (/fetch failed|ENOTFOUND|ECONN/i.test(e.message)) throw new Error('No connection to the store. Check your internet.')
-      throw e
-    } finally { clearTimeout(t) }
-  })
-
   handle('update:get', () => updater.get())
   handle('update:install', () => updater.install())
 

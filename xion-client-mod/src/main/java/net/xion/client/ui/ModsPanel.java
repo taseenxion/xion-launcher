@@ -35,10 +35,12 @@ import java.util.zip.ZipFile;
  * Mods page of the Xion menu.
  *
  * The grid is split into sections: XION MODS (the mods Xion Launcher itself installs) and YOUR
- * MODS (everything the player added). Cards carry Xion's own hand-drawn glyph instead of each
- * mod's logo, the mod name and version, a Config button, and an Enabled/Disabled pill. Cards
- * slide in one after another, the glyph pops in once its card has landed and floats gently.
- * Switching a mod applies on the next launch (see ModToggles).
+ * MODS (everything the player added). Each card shows the mod's own logo — read from the jar,
+ * falling back to Xion's hand-drawn glyph — with the mod name and version, and two buttons at the
+ * bottom: an Enable/Disabled switch on the left and a Settings button on the right (greyed out
+ * when the mod ships no config screen). Cards slide in one after another, the logo pops in once
+ * its card has landed and floats gently. Switching a mod applies on the next launch (see
+ * ModToggles).
  */
 final class ModsPanel {
 	enum Click { NONE, HANDLED, FILTER, XION }
@@ -58,6 +60,8 @@ final class ModsPanel {
 		String id, name, version;
 		ModContainer container; // null for a disabled jar
 		Path jar;               // set for a disabled jar
+		Path root;              // mod folder (dev) or jar file (game), for reading the logo
+		String icon;            // icon path declared in fabric.mod.json, or null
 		boolean loaded, pre, xion;
 		String lockedBy;        // non-null: can't be switched off
 		Function<Screen, Screen> config;
@@ -111,6 +115,14 @@ final class ModsPanel {
 			e.xion = id.equals("xionclient");
 			e.pre = e.xion || PackLogos.isPreinstalled(m);
 			e.config = configs.get(id);
+			try {
+				if (!m.getRootPaths().isEmpty()) e.root = m.getRootPaths().get(0);
+			} catch (Exception | LinkageError ignored) {
+			}
+			try {
+				e.icon = meta.getIconPath(64).orElse(null);
+			} catch (Exception | LinkageError ignored) {
+			}
 			all.add(e);
 			try {
 				for (ModDependency d : meta.getDependencies()) {
@@ -154,12 +166,38 @@ final class ModsPanel {
 				e.name = meta.has("name") ? meta.get("name").getAsString() : id;
 				e.version = meta.has("version") ? meta.get("version").getAsString() : "";
 				e.jar = p;
+				e.root = p;
+				e.icon = iconFromMeta(meta);
 				e.loaded = false;
 				e.pre = PackLogos.isManagedJar(p.getFileName().toString());
 				all.add(e);
 			});
 		} catch (Exception ignored) {
 		}
+	}
+
+	/** The icon path a fabric.mod.json declares: a plain path, or the biggest of its size map. */
+	private static String iconFromMeta(JsonObject meta) {
+		JsonElement ic = meta.get("icon");
+		if (ic == null) return null;
+		if (ic.isJsonPrimitive()) return ic.getAsString();
+		if (ic.isJsonObject()) {
+			String best = null;
+			int bestSize = -1;
+			for (Map.Entry<String, JsonElement> e : ic.getAsJsonObject().entrySet()) {
+				int size = 0;
+				try {
+					size = Integer.parseInt(e.getKey().trim());
+				} catch (NumberFormatException ignored) {
+				}
+				if (size >= bestSize && e.getValue().isJsonPrimitive()) {
+					bestSize = size;
+					best = e.getValue().getAsString();
+				}
+			}
+			return best;
+		}
+		return null;
 	}
 
 	private static JsonObject readMeta(Path jar) {
@@ -176,7 +214,7 @@ final class ModsPanel {
 		}
 	}
 
-	/** The card glyph for a mod: Xion's own art, picked from what the mod does. */
+	/** The fallback glyph for a mod without a logo: Xion's own art, picked from what the mod does. */
 	private static String kind(Entry e) {
 		String id = e.id.toLowerCase();
 		if (e.xion) return ModIcons.XION;
@@ -299,7 +337,7 @@ final class ModsPanel {
 		float ca = a * ease;
 		int dx = Math.round((1f - ease) * 18f);
 		int dy = Math.round((1f - ease) * 8f);
-		// The glyph pops in a moment after its card has landed.
+		// The logo pops in a moment after its card has landed.
 		float pop = Math.max(0f, Math.min(1f, (now - openedAt - index * 26L - 120L) / 280f));
 		pop = 1f - (1f - pop) * (1f - pop);
 
@@ -311,6 +349,7 @@ final class ModsPanel {
 		boolean on = ModToggles.wanted(e.id, e.loaded);
 		boolean pending = ModToggles.pending(e.id, e.loaded);
 		boolean locked = e.lockedBy != null;
+		boolean hasCfg = e.config != null || e.xion;
 
 		// Card
 		g.pill(cx, top, cw, CARD_H, Colors.alpha(hov ? Colors.CARD_HOVER : Colors.CARD, ca));
@@ -329,7 +368,7 @@ final class ModsPanel {
 		g.text(g.font.plainSubstrByWidth(e.name, nameW), cx + PAD, top + 7, Colors.alpha(on ? Colors.TEXT : Colors.MUTED, ca), false);
 		if (!verFit.isEmpty()) g.text(verFit, cx + cw - PAD - g.font.width(verFit), top + 7, Colors.alpha(Colors.MUTED, ca), false);
 
-		// Glyph: Xion's own art, centred, bobbing gently, grown on hover.
+		// Logo: the mod's own icon, centred, bobbing gently, grown on hover. Dimmed when off.
 		int gy = top + 30;
 		int size = Math.round(ICON * (0.55f + 0.45f * pop)) + (hov ? 2 : 0);
 		int bob = Math.round((float) Math.sin(t * 2.0f + index * 0.7f) * 1.4f);
@@ -337,42 +376,52 @@ final class ModsPanel {
 			g.rounded(cx + cw / 2 - 17, gy - 17 + bob, 34, 34, Colors.alpha(Colors.ACCENT, 0.09f * ca));
 		}
 		int iconColor = on ? (hov ? 0xFFFFFFFF : Colors.TEXT) : Colors.lerp(Colors.MUTED, Colors.CARD, 0.25f);
-		ModIcons.draw(g, kind(e), cx + cw / 2, gy + bob, size, Colors.alpha(iconColor, ca * pop));
-
-		// Footer: Config button, then the Enabled/Disabled pill.
-		int fy = top + CARD_H - 18;
-		boolean hasGear = e.config != null || e.xion;
-		int bx = cx + PAD;
-		if (hasGear) {
-			boolean gh = hov && mx - dx >= bx && mx - dx < bx + 14 && my >= fy && my < fy + 14;
-			g.pill(bx, fy, 14, 14, Colors.alpha(gh ? Colors.lerp(Colors.CARD_HOVER, Colors.ACCENT, 0.4f) : 0xFF1E2430, ca));
-			g.centeredText("⚙", bx + 7f, fy + 3f, 1f, Colors.alpha(gh ? Colors.TEXT : Colors.lerp(Colors.MUTED, Colors.ACCENT, 0.45f), ca), false);
-		}
-		int pillX = hasGear ? bx + 18 : cx + PAD;
-		int pillW = cx + cw - PAD - pillX;
-
-		String label;
-		int pillBg, pillFg;
-		if (pending) {
-			label = on ? "Turns off next launch" : "Turns on next launch";
-			pillBg = Colors.alpha(Colors.ACCENT, 0.16f * ca);
-			pillFg = Colors.alpha(Colors.ACCENT, (0.7f + 0.3f * pulse(t, 0)) * ca);
-		} else if (locked) {
-			label = "Required";
-			pillBg = Colors.alpha(0xFF1E2430, ca);
-			pillFg = Colors.alpha(Colors.MUTED, ca);
-		} else if (on) {
-			label = "Enabled";
-			pillBg = Colors.alpha(Colors.OK, 0.16f * ca);
-			pillFg = Colors.alpha(Colors.OK, ca);
+		ModLogos.Logo logo = ModLogos.get(e.root, e.icon, e.id);
+		if (logo != null) {
+			int w2 = logo.width(), h2 = logo.height();
+			int w = w2 >= h2 ? size : Math.round(size * w2 / (float) h2);
+			int h = h2 >= w2 ? size : Math.round(size * h2 / (float) w2);
+			g.blit(logo.texture(), cx + cw / 2 - w / 2, gy + bob - h / 2, w, h, 0, 0, w2, h2, w2, h2, Colors.alpha(iconColor, ca * pop));
 		} else {
-			label = "Disabled";
-			pillBg = Colors.alpha(0xFF1E2430, ca);
-			pillFg = Colors.alpha(Colors.MUTED, ca);
+			ModIcons.draw(g, kind(e), cx + cw / 2, gy + bob, size, Colors.alpha(iconColor, ca * pop));
 		}
-		g.pill(pillX, fy, pillW, 14, pillBg);
-		if (pending) g.pillOutline(pillX, fy, pillW, 14, Colors.alpha(Colors.ACCENT, 0.4f * ca));
-				g.centeredText(g.font.plainSubstrByWidth(label, pillW - 8), pillX + pillW / 2f, fy + 3f, 1f, pillFg, false);
+
+		// Footer: an Enable/Disabled switch on the left, a Settings button on the right.
+		int fy = top + CARD_H - 18;
+		int half = (cw - PAD * 2 - 4) / 2;
+		int tx = cx + PAD, sxx = tx + half + 4;
+		int setW = cw - PAD - sxx;
+
+		String tLabel;
+		int tBg, tFg;
+		if (pending) {
+			tLabel = on ? "Turns off" : "Turns on";
+			tBg = Colors.alpha(Colors.ACCENT, 0.16f * ca);
+			tFg = Colors.alpha(Colors.ACCENT, (0.7f + 0.3f * pulse(t, 0)) * ca);
+		} else if (locked) {
+			tLabel = "Required";
+			tBg = Colors.alpha(0xFF1E2430, ca);
+			tFg = Colors.alpha(Colors.MUTED, ca);
+		} else if (on) {
+			tLabel = "Enabled";
+			tBg = Colors.alpha(Colors.OK, 0.16f * ca);
+			tFg = Colors.alpha(Colors.OK, ca);
+		} else {
+			tLabel = "Disabled";
+			tBg = Colors.alpha(0xFF1E2430, ca);
+			tFg = Colors.alpha(Colors.MUTED, ca);
+		}
+		boolean tHov = hov && !locked && mx - dx >= tx && mx - dx < tx + half && my >= fy && my < fy + 14;
+		g.pill(tx, fy, half, 14, tHov ? Colors.alpha(Colors.lerp(tBg, Colors.ACCENT, 0.25f), ca) : tBg);
+		if (pending) g.pillOutline(tx, fy, half, 14, Colors.alpha(Colors.ACCENT, 0.4f * ca));
+		else if (tHov) g.pillOutline(tx, fy, half, 14, Colors.alpha(Colors.ACCENT, 0.5f * ca));
+		g.centeredText(g.font.plainSubstrByWidth(tLabel, half - 8), tx + half / 2f, fy + 3f, 1f, tFg, false);
+
+		boolean sHov = hasCfg && hov && mx - dx >= sxx && mx - dx < sxx + setW && my >= fy && my < fy + 14;
+		g.pill(sxx, fy, setW, 14, Colors.alpha(sHov ? Colors.lerp(Colors.CARD_HOVER, Colors.ACCENT, 0.35f) : 0xFF1E2430, ca));
+		if (sHov) g.pillOutline(sxx, fy, setW, 14, Colors.alpha(Colors.ACCENT, 0.5f * ca));
+		g.centeredText(g.font.plainSubstrByWidth(hasCfg ? "Settings" : "No settings", setW - 8), sxx + setW / 2f, fy + 3f, 1f,
+			Colors.alpha(hasCfg ? (sHov ? 0xFFFFFFFF : Colors.ACCENT) : Colors.MUTED, ca), false);
 		g.pop();
 	}
 
@@ -424,10 +473,19 @@ final class ModsPanel {
 				int cy = iy + (i / c) * (CARD_H + GAP);
 				if (mx >= cx && mx < cx + cw && my >= cy && my < cy + CARD_H) {
 					Entry e = b.entries.get(i);
-					boolean hasGear = e.config != null || e.xion;
 					int fy = cy + CARD_H - 18;
-					int bx = cx + PAD;
-					if (hasGear && mx >= bx && mx < bx + 14 && my >= fy && my < fy + 14) return openConfig(e, parent);
+					int half = (cw - PAD * 2 - 4) / 2;
+					int tx = cx + PAD, sxx = tx + half + 4;
+					if (my >= fy && my < fy + 14) {
+						// Left button toggles, right button opens the mod's own settings.
+						if (mx >= tx && mx < tx + half) {
+							Compat.click();
+							if (e.lockedBy == null) ModToggles.set(e.id, !ModToggles.wanted(e.id, e.loaded), e.loaded);
+							return Click.HANDLED;
+						}
+						if (mx >= sxx && mx < sxx + (cw - PAD - sxx)) return openConfig(e, parent);
+						return Click.NONE;
+					}
 					Compat.click();
 					if (e.lockedBy == null) ModToggles.set(e.id, !ModToggles.wanted(e.id, e.loaded), e.loaded);
 					return Click.HANDLED;
@@ -441,6 +499,7 @@ final class ModsPanel {
 	private Click openConfig(Entry e, Screen parent) {
 		Compat.click();
 		if (e.xion) return Click.XION;
+		if (e.config == null) return Click.HANDLED;
 		try {
 			Screen sc = e.config.apply(parent);
 			if (sc != null) Compat.setScreen(sc);

@@ -7,7 +7,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600&family=Inter:wght@400;500;600&family=Allura&family=JetBrains+Mono:wght@400;500&family=Silkscreen&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="store/store.css">
   <link rel="stylesheet" href="intro.css">
 </head>
 <body data-page="play">
@@ -53,7 +52,6 @@
         <span class="tab-ink" id="tabInk"></span>
         <button class="nav active" data-page="play">Home</button>
         <button class="nav nav-pvp" data-page="pvp"><svg viewBox="0 0 24 24"><path d="M14.5 3.5 20.5 3.5 20.5 9.5 9 21 3 15z"/><path d="M13 8l3 3M5 13l6 6"/></svg>PvP</button>
-        <button class="nav nav-store" data-page="store"><svg viewBox="0 0 24 24"><path d="M4 7h16l-1.5 12.5a1 1 0 01-1 .9h-11a1 1 0 01-1-.9z"/><path d="M8.5 7a3.5 3.5 0 017 0"/></svg>Store</button>
         <button class="nav" data-page="profiles">Profiles</button>
         <button class="nav" data-page="mods">Mods</button>
         <button class="nav" data-page="player">Skin</button>
@@ -160,108 +158,6 @@
       </section>
 
       <!-- PROFILES -->
-      <!-- STORE -->
-      <section class="page store-page" id="page-store">
-        <div class="xs-top">
-          <div class="xs-title"><span class="eyebrow">Cosmetics</span><h1>Xion Store</h1><div class="xs-stats-line" id="xsStats"></div></div>
-          <div class="xs-tabs">
-            <button class="on" data-tab="shop">Shop</button>
-            <button data-tab="locker">Locker</button>
-            <button data-tab="orders">Orders<i class="xs-dot hidden" id="xsOrdersBadge"></i></button>
-          </div>
-          <div class="xs-tools">
-            <select id="xsCurrency" title="Currency"><option value="USD">$ USD</option><option value="BDT">৳ BDT</option><option value="INR">₹ INR</option></select>
-            <button class="xs-cartbtn" id="xsCartBtn" title="Cart"><svg viewBox="0 0 24 24"><path d="M4 7h16l-1.5 12.5a1 1 0 01-1 .9h-11a1 1 0 01-1-.9z"/><path d="M8.5 7a3.5 3.5 0 017 0"/></svg><i id="xsCartCount" class="hidden">0</i></button>
-            <button class="xs-adminbtn" id="xsAdminBtn" title="Store admin"><svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg></button>
-          </div>
-        </div>
-
-        <div class="xs-body">
-          <aside class="xs-stage">
-            <div class="xs-canvas"><canvas id="xsCanvas"></canvas><div class="xs-floor"></div><span class="xs-name" id="xsStageName">Guest</span></div>
-            <div class="xs-wearing" id="xsWearing"></div>
-            <div class="xs-ctrl">
-              <button id="xsSpin" class="on" title="Spin">⟳ Spin</button><button id="xsFront" title="Front">Front</button><button id="xsBack" title="Back">Back</button><button id="xsReset" title="Reset outfit">Reset</button>
-            </div>
-            <div class="xs-analyze" id="xsAnalyze"></div>
-          </aside>
-
-          <div class="xs-main">
-            <div class="xs-view" data-view="shop">
-              <div class="xs-filters">
-                <div class="xs-chips">
-                  <button class="xs-chip on" data-filter="all">All</button><button class="xs-chip" data-filter="cape">Capes</button><button class="xs-chip" data-filter="hat">Hats</button>
-                  <button class="xs-chip" data-filter="wings">Wings</button><button class="xs-chip" data-filter="aura">Auras</button><button class="xs-chip" data-filter="animated">✦ Animated</button>
-                </div>
-                <div class="xs-frow">
-                  <input id="xsSearch" placeholder="Search cosmetics…" autocomplete="off" spellcheck="false">
-                  <select id="xsSet"><option value="">All collections</option></select>
-                  <select id="xsSort"><option value="featured">Featured</option><option value="popular">Most worn</option><option value="rarity">Rarest</option><option value="price-asc">Price: low to high</option><option value="price-desc">Price: high to low</option></select>
-                </div>
-              </div>
-              <div id="xsBundles"><h2 class="xs-h">Bundles <small>save about 40%</small></h2><div class="xs-bundles" id="xsBundleRow"></div></div>
-              <h2 class="xs-h">All cosmetics <small id="xsCount"></small></h2>
-              <div class="xs-grid" id="xsGrid"><div class="xs-empty">Opening the store…</div></div>
-            </div>
-            <div class="xs-view hidden" data-view="locker"><div id="xsLocker"></div></div>
-            <div class="xs-view hidden" data-view="orders"><h2 class="xs-h">Your orders</h2><div id="xsOrderList"></div></div>
-          </div>
-        </div>
-
-        <!-- cart -->
-        <div class="xs-layer hidden" id="xsCart"><div class="xs-drawer">
-          <header><h3>Cart</h3><button data-close>✕</button></header>
-          <div class="xs-clines" id="xsCartLines"></div>
-          <div class="xs-codebox"><input id="xsCode" placeholder="Discount code" autocomplete="off"><button class="btn ghost" id="xsApplyCode">Apply</button></div>
-          <small class="muted" id="xsCodeNote"></small>
-          <div class="xs-ctotal"><span>Total</span><b id="xsCartTotal">—</b></div>
-          <button class="btn primary wide" id="xsCheckout" disabled>Checkout</button>
-        </div></div>
-
-        <!-- checkout -->
-        <div class="xs-layer hidden" id="xsCheckoutModal"><form class="xs-modal" id="xsCheckoutForm" autocomplete="off">
-          <header><div class="xs-steps"><span class="on">Details</span><span>Payment</span><span>Done</span></div><button type="button" data-close>✕</button></header>
-          <div class="xs-step" data-step="1">
-            <div class="xs-sum" id="xsSum"></div>
-            <label>Minecraft name (who gets the cosmetics)<input name="ign" maxlength="16"></label>
-            <label>Email (so we can reach you)<input name="email" type="email" maxlength="120"></label>
-            <button type="button" class="btn primary wide" id="xsToPay">Continue to payment</button>
-          </div>
-          <div class="xs-step hidden" data-step="2">
-            <div class="xs-methods" id="xsMethods"></div>
-            <div class="xs-paybox" id="xsPayBox"></div>
-            <div id="xsPayFields">
-              <label><span id="xsPayerLabel">Number you paid from</span><input name="payer" maxlength="60"></label>
-              <label>Transaction ID<input name="trx" maxlength="60"></label>
-              <label class="xs-file">Payment screenshot<input type="file" name="shot" accept="image/png,image/jpeg,image/webp"><span id="xsShotName">Choose image…</span></label>
-            </div>
-            <p class="xs-err" id="xsPayErr"></p>
-            <div class="xs-two"><button type="button" class="btn ghost" id="xsBackTo1">Back</button><button class="btn primary" id="xsPlace">Place order</button></div>
-          </div>
-          <div class="xs-step hidden xs-done" data-step="3">
-            <div class="xs-check">✓</div><h3>Order placed!</h3>
-            <p class="muted">We check your payment and unlock your cosmetics. Your locker key appears here as soon as it's approved, and the launcher saves it for you.</p>
-            <button type="button" class="btn primary wide" id="xsViewOrder">View order</button>
-          </div>
-        </form></div>
-
-        <!-- order detail -->
-        <div class="xs-layer hidden" id="xsOrderModal"><div class="xs-modal"><header><h3>Order</h3><button data-close>✕</button></header><div id="xsOrderBody"></div></div></div>
-
-        <!-- admin -->
-        <div class="xs-layer hidden" id="xsAdminLogin"><form class="xs-modal xs-small" id="xsAdminForm" autocomplete="off">
-          <header><h3>Store admin</h3><button type="button" data-close>✕</button></header>
-          <label>Username<input name="user" maxlength="40" autocomplete="username"></label>
-          <label>Password<input name="pass" type="password" maxlength="100" autocomplete="current-password"></label>
-          <p class="xs-err" id="xsAdminErr"></p>
-          <button type="submit" class="btn primary wide">Log in</button>
-        </form></div>
-        <div class="xs-layer hidden" id="xsAdmin"><div class="xs-admin">
-          <header><h3>Store admin</h3><div class="xs-tabs"><button data-atab="orders" class="on">Orders</button><button data-atab="players">Players</button><button data-atab="settings">Payments &amp; codes</button></div><button class="btn ghost" id="xsAdminOut">Log out</button><button data-close>✕</button></header>
-          <div class="xs-abody" id="xsAdminBody"></div>
-        </div></div>
-      </section>
-
       <section class="page" id="page-profiles">
         <div class="page-head">
           <div><span class="eyebrow">Library</span><h1>Profiles</h1><p class="muted">Every profile runs Xion Client with its own folder, mods and settings.</p></div>
@@ -463,6 +359,5 @@
   <script src="hero.js"></script>
   <script src="app.js"></script>
   <script src="intro.js"></script>
-  <script type="module" src="store/store.js"></script>
 </body>
 </html>

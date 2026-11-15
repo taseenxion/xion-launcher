@@ -9,17 +9,13 @@ import net.xion.client.feature.Premium;
 
 import java.util.function.Consumer;
 
-/** "Xion+" tab of the Xion menu: Premium status and the custom crosshair editor. */
-final class PremiumPanel {
+/** "Crosshair" tab of the Xion menu (Xion+ only): the custom crosshair editor. */
+final class CrosshairPanel {
 	private static final int SW = 12, SGAP = 4;
-	private int x, y, w, swX, swY, pvX, pvY;
+	private int swX, swY, pvX, pvY;
 	private XButton styleBtn, sizeBtn, outlineBtn;
 
 	void layout(Consumer<XButton> add, int x, int y, int w) {
-		this.x = x;
-		this.y = y;
-		this.w = w;
-		if (!Premium.active()) return;
 		int bx = x, by = y + 46, bw = (w - 70) / 2 - 3;
 		styleBtn = new XButton(bx, by, bw, 18, "", XButton.Style.SLAB, () -> {
 			XionConfig.data.crosshairStyle = (XionConfig.data.crosshairStyle + 1) % Crosshair.STYLES.length;
@@ -52,21 +48,6 @@ final class PremiumPanel {
 	}
 
 	void draw(Gfx g, int x, int y, int w, float a) {
-		if (!Premium.active()) {
-			g.pill(x, y, w, 108, Colors.alpha(Colors.CARD, a));
-			g.pillOutline(x, y, w, 108, Colors.alpha(Colors.GOLD, 0.5f * a));
-			g.text("Xion Premium", x + 10, y + 10, Colors.alpha(Colors.GOLD, a), false);
-			String[] lines = {
-				"100+ capes + matching elytra  ·  gold Xion+ badge",
-				"Premium themes  ·  Turbo FPS mode",
-				"Chroma + custom HUD colours",
-				"Custom crosshairs  ·  Target HUD, Combo, Reach",
-				"",
-				"Unlock in Xion Launcher → Settings → Xion Premium"
-			};
-			for (int i = 0; i < lines.length; i++) g.text(lines[i], x + 10, y + 26 + i * 12, Colors.alpha(i == lines.length - 1 ? Colors.ACCENT : Colors.TEXT, a), false);
-			return;
-		}
 		String who = Premium.owner().isEmpty() ? "Xion Premium active" : "Xion Premium  ·  " + Premium.owner();
 		g.text(g.font.plainSubstrByWidth(who, w), x, y + 2, Colors.alpha(Colors.GOLD, a), false);
 		g.text("Thanks for supporting Xion!", x, y + 14, Colors.alpha(Colors.MUTED, a), false);
@@ -89,7 +70,7 @@ final class PremiumPanel {
 	}
 
 	boolean click(double mx, double my, int button) {
-		if (!Premium.active() || my < swY || my > swY + SW) return false;
+		if (my < swY || my > swY + SW) return false;
 		int i = (int) ((mx - swX) / (SW + SGAP));
 		if (i < 0 || i >= Crosshair.SWATCHES.length || mx - swX - i * (SW + SGAP) > SW) return false;
 		XionConfig.data.crosshairColor = Crosshair.SWATCHES[i];

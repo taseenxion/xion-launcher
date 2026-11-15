@@ -81,7 +81,6 @@ function bodyUrl (acc) {
   return `https://mc-heads.net/body/${encodeURIComponent(id)}/240`
 }
 const activeAccount = () => state.accounts.find(a => a.id === state.active)
-window.activeAccount = activeAccount // used by the Store module (store/store.js)
 const selectedProfile = () => state.profiles.find(p => p.id === state.selectedProfile) || state.profiles[0]
 
 const isOptimized = p => p.optimize !== false
@@ -173,7 +172,6 @@ function go (page) {
   window.dispatchEvent(new CustomEvent('xion:page', { detail: page }))
 }
 
-// The Store page lives in store/store.js (an ES module); it listens for these events.
 $$('.nav').forEach(n => n.addEventListener('click', () => go(n.dataset.page)))
 $$('[data-goto]').forEach(n => n.addEventListener('click', () => {
   go(n.dataset.goto)

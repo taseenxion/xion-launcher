@@ -18,9 +18,13 @@ import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
-/** Right Shift menu: mods (logos, on/off, config), HUD modules, features, cosmetics, Xion+ and your profile. */
+/** Right Shift menu: mods (logos, enable + settings), HUD modules, features, capes and your profile. */
 public class XionMenuScreen extends BaseScreen {
-	public enum Tab { MODS, HUD, FEATURES, COSMETICS, PREMIUM, PROFILE }
+	public enum Tab { MODS, HUD, FEATURES, CAPES, PROFILE, CROSSHAIR }
+
+	private static final Tab[] TABS = { Tab.MODS, Tab.HUD, Tab.FEATURES, Tab.CAPES, Tab.PROFILE };
+	/** Crosshair editing is Xion+ only, so the tab only appears with a valid key. */
+	private static final Tab[] TABS_XP = { Tab.MODS, Tab.HUD, Tab.FEATURES, Tab.CAPES, Tab.CROSSHAIR, Tab.PROFILE };
 
 	private static final int GAP = 6;
 	private static final int CARD_H = 34;
@@ -32,7 +36,7 @@ public class XionMenuScreen extends BaseScreen {
 	}
 
 	private final Screen parent;
-	private final PremiumPanel premiumPanel = new PremiumPanel();
+	private final CrosshairPanel crosshairPanel = new CrosshairPanel();
 	private final CosmeticsPanel cosmeticsPanel = new CosmeticsPanel();
 	private final ModsPanel modsPanel;
 	private Tab tab;
@@ -77,10 +81,10 @@ public class XionMenuScreen extends BaseScreen {
 		cols = contentW >= 330 ? 3 : 2;
 		cardW = (contentW - (cols - 1) * GAP) / cols;
 
-		Tab[] tabs = Tab.values();
+		Tab[] tabs = net.xion.client.feature.Premium.active() ? TABS_XP : TABS;
 		String[] names = Pvp.active()
-			? new String[]{"Mods", "PvP HUD", "Combat", "Cosmetics", "Xion+", "Profile"}
-			: new String[]{"Mods", "HUD Mods", "Features", "Cosmetics", "Xion+", "Profile"};
+			? (tabs.length == TABS_XP.length ? new String[]{"Mods", "PvP HUD", "Combat", "Capes", "Crosshair", "Profile"} : new String[]{"Mods", "PvP HUD", "Combat", "Capes", "Profile"})
+			: (tabs.length == TABS_XP.length ? new String[]{"Mods", "HUD Mods", "Features", "Capes", "Crosshair", "Profile"} : new String[]{"Mods", "HUD Mods", "Features", "Capes", "Profile"});
 		for (int i = 0; i < tabs.length; i++) {
 			Tab t = tabs[i];
 			XButton b = add(new XButton(px + 8, py + 34 + i * 24, sideW - 8, 20, names[i], XButton.Style.TAB, () -> switchTab(t)));
@@ -88,7 +92,7 @@ public class XionMenuScreen extends BaseScreen {
 		}
 		int by = py + ph - 24;
 		if (tab == Tab.HUD) add(new XButton(contentX, by, 120, 18, "Edit HUD Layout", XButton.Style.PRIMARY, () -> Compat.setScreen(new HudEditorScreen(this))));
-		if (tab == Tab.PREMIUM) premiumPanel.layout(this::add, contentX, contentY, contentW);
+		if (tab == Tab.CROSSHAIR) crosshairPanel.layout(this::add, contentX, contentY, contentW);
 		add(new XButton(px + pw - 10 - 64, by, 64, 18, "Done", XButton.Style.GLASS, this::onClose));
 	}
 
@@ -110,7 +114,7 @@ public class XionMenuScreen extends BaseScreen {
 
 	private int rowsHeight() {
 		if (tab == Tab.MODS) return modsPanel.height(contentW);
-		if (tab == Tab.COSMETICS) return cosmeticsPanel.height(contentW);
+		if (tab == Tab.CAPES) return cosmeticsPanel.height(contentW);
 		int n = currentToggles().size();
 		return ((n + cols - 1) / cols) * (CARD_H + GAP);
 	}
@@ -157,8 +161,8 @@ public class XionMenuScreen extends BaseScreen {
 				modsPanel.footer(g, contentX, py + ph - 19, a);
 			}
 			case PROFILE -> drawProfile(g, mx, my - oy, a);
-			case PREMIUM -> premiumPanel.draw(g, contentX, contentY, contentW, a);
-			case COSMETICS -> cosmeticsPanel.draw(g, contentX, contentY, contentW, contentH, scroll, mx, my - oy, a);
+			case CROSSHAIR -> crosshairPanel.draw(g, contentX, contentY, contentW, a);
+			case CAPES -> cosmeticsPanel.draw(g, contentX, contentY, contentW, contentH, scroll, mx, my - oy, a);
 			default -> drawToggles(g, mx, my - oy, a);
 		}
 		g.pop();
@@ -221,14 +225,10 @@ public class XionMenuScreen extends BaseScreen {
 
 	@Override
 	protected boolean click(double x, double y, int button) {
-		if (tab == Tab.PREMIUM) return premiumPanel.click(x, y, button);
-		if (tab == Tab.COSMETICS) {
+		if (tab == Tab.CROSSHAIR) return crosshairPanel.click(x, y, button);
+		if (tab == Tab.CAPES) {
+			// Locked capes stay locked; the key is entered in Xion Launcher, not bought in game.
 			CosmeticsPanel.Click c = cosmeticsPanel.click(x, y, contentX, contentY, contentW, contentH, scroll);
-			if (c == CosmeticsPanel.Click.LOCKED) {
-				tab = Tab.PREMIUM;
-				scroll = 0;
-				rebuild();
-			}
 			return c != CosmeticsPanel.Click.NONE;
 		}
 		if (tab == Tab.MODS) {
@@ -245,10 +245,8 @@ public class XionMenuScreen extends BaseScreen {
 			if (x >= cxp && x < cxp + cardW && y >= cyp && y < cyp + CARD_H && cyp >= contentY - 4 && cyp < contentY + contentH) {
 				Toggle tg = list.get(i);
 				if (tg.premium() && !net.xion.client.feature.Premium.active()) {
+					// No in-game store: Xion+ modules need a key entered in Xion Launcher.
 					Compat.click();
-					tab = Tab.PREMIUM;
-					scroll = 0;
-					rebuild();
 					return true;
 				}
 				// The card body opens a module's settings; the switch on the right toggles it.
