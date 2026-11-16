@@ -122,8 +122,15 @@
     d.addEventListener('click', e => { if (e.target.closest('[data-close]')) closeDrawer(d) })
     return d
   }
-  const openDrawer = el => { el.classList.add('open'); document.documentElement.classList.add('shop-lock') }
-  const closeDrawer = el => { el.classList.remove('open'); if (!$('.drawer.open, .sheet.open')) document.documentElement.classList.remove('shop-lock') }
+  const openDrawer = el => {
+    el._previousFocus = document.activeElement
+    el.classList.add('open'); document.documentElement.classList.add('shop-lock')
+    requestAnimationFrame(() => $('button, input', el)?.focus())
+  }
+  const closeDrawer = el => {
+    el.classList.remove('open')
+    if (!$('.drawer.open, .sheet.open')) { document.documentElement.classList.remove('shop-lock'); el._previousFocus?.focus() }
+  }
 
   function renderCart () {
     const btn = $('#cartBtn')
@@ -141,16 +148,20 @@
       ? `<div class="cart-lines">${lines}</div>
          <div class="cart-total"><span>Total</span><b>${money(CUR, cartTotal())}</b></div>
          <div class="cur-pick">${['BDT', 'USD', 'INR'].map(c => `<button class="${c === CUR ? 'on' : ''}" data-cur="${c}">${SYM[c]} ${c}</button>`).join('')}</div>
-         <button class="btn big wide" id="cartGo">Checkout with bKash or Nagad<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+         <button class="btn big wide" id="cartGo">Continue to checkout<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
          <p class="fine">Payment is checked by hand. Cosmetics unlock on your order page, and Xion+ appears on your Xion account automatically.</p>`
       : '<p class="empty-cart">Your cart is empty. Every cape with a price tag can be bought.</p>'
-    $('.dr-body', d).addEventListener('click', e => {
+    $('.dr-body', d).onclick = e => {
       const rm = e.target.closest('[data-rm]')
       if (rm) { cart = cart.filter(x => x !== rm.dataset.rm); commitCart(); return }
       const c = e.target.closest('[data-cur]')
       if (c) { CUR = c.dataset.cur; commitCart(); return }
-      if (e.target.closest('#cartGo')) { closeDrawer(d); sheetOpen('cos') }
-    })
+      if (e.target.closest('#cartGo')) {
+        closeDrawer(d)
+        if (cart.includes('xion_plus') && !signedIn()) { showAccount(); toast('Sign in first so Xion+ unlocks on your account.'); return }
+        sheetOpen('cos')
+      }
+    }
   }
 
   // ── checkout sheet ──
@@ -178,11 +189,11 @@
     return s
   }
 
-  const st = { kind: 'cos', step: 0, currency: CUR, method: '', code: '', shot: '', discount: null, busy: false, details: {} }
+  const st = { kind: 'cos', step: 0, currency: CUR, method: '', code: '', shot: '', discount: null, busy: false, details: {}, plus: false }
   const cfgFor = () => (st.kind === 'xion' ? CX : CC)
 
   function sheetOpen (kind) {
-    st.kind = kind; st.step = 0; st.currency = CUR; st.method = ''; st.code = ''; st.shot = ''; st.discount = null; st.details = {}
+    st.kind = kind; st.step = 0; st.currency = CUR; st.method = ''; st.code = ''; st.shot = ''; st.discount = null; st.details = {}; st.plus = false
     const s = sheet()
     $('#shBadge').textContent = kind === 'xion' ? 'XION+' : 'COSMETICS'
     $('#shTitle').textContent = kind === 'xion' ? 'Get Xion+' : 'Checkout'
@@ -208,7 +219,7 @@
       const base = CX ? CX.prices[st.currency] : 0
       const now = st.discount != null ? st.discount : base
       return `<section class="sh-step">
-        <p class="sh-lead">One-time payment for Xion+ on one device. Pick your currency.</p>
+        <p class="sh-lead">One-time payment for Xion+. Pick your currency.</p>
         <div class="cur-grid">${['USD', 'BDT', 'INR'].map(c => `<button class="cur-card ${c === st.currency ? 'on' : ''}" data-cur="${c}"><b>${SYM[c]}${(CX?.prices[c] ?? 0)}</b><small>${{ USD: 'Card', BDT: 'bKash · Nagad', INR: 'UPI' }[c]}</small></button>`).join('')}</div>
         <div class="sum"><span>Xion+</span><b>${now < base ? `<s>${money(st.currency, base)}</s> ${money(st.currency, now)}` : money(st.currency, now)}</b></div>
         <button class="btn big wide" data-next>Continue<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
@@ -398,6 +409,7 @@
         remember({ kind: 'xion', id: r.id, token: r.token, at: Date.now(), title: 'Xion+', amount: CX.prices[st.currency], currency: st.currency })
       } else {
         const hasPlus = cart.includes('xion_plus')
+        st.plus = hasPlus
         r = await call('/api/cosmetics?r=shop', { action: 'order', ...details, cart })
         remember({ kind: 'cos', plus: hasPlus, id: r.id, token: r.token, at: Date.now(), title: hasPlus ? 'Xion+' : cart.length === 1 && cosItem(cart[0]) ? cosItem(cart[0]).name : `${cart.length} cosmetics`, amount: st.discount != null ? st.discount : cartTotal(), currency: st.currency })
         cart = []
@@ -419,7 +431,7 @@
     return `<section class="sh-step done">
       <div class="done-anim"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="24"/><path d="M15 27l7 7 15-16"/></svg></div>
       <h4>Order placed!</h4>
-      <p class="sh-lead">We check every payment by hand. Your ${st.kind === 'xion' ? 'Xion+ license key' : 'locker key'} shows up on your order page the moment it is approved — keep this tab's link, it is how you get back to it.</p>
+      <p class="sh-lead">We check every payment by hand. ${st.plus ? 'Xion+ unlocks on your Xion account after approval.' : `Your ${st.kind === 'xion' ? 'Xion+ license key' : 'locker key'} appears on your order page after approval.`} Keep your order link so you can return to it.</p>
       <button class="btn big wide" id="openOrder">Open my order</button>
     </section>`
   }
@@ -440,10 +452,10 @@
       $('.dr-body', d).innerHTML = list.length
         ? `<div class="ord-list">${list.map(o => `<button class="ord-row" data-open="${o.kind}:${o.id}">${(o.plus || o.kind === 'xion') ? '<i class="tagx">XION+</i>' : '<i class="tagc">CAPES</i>'}<div><b>${esc(o.title)}</b><small>${new Date(o.at).toLocaleDateString()} · ${money(o.currency, o.amount)}</small></div><span class="arrow">›</span></button>`).join('')}</div><div id="ordView"></div>`
         : '<p class="empty-cart">No orders from this browser yet. Place one and it will appear here with its status.</p>'
-      $('.dr-body', d).addEventListener('click', e => {
+      $('.dr-body', d).onclick = e => {
         const b = e.target.closest('[data-open]')
         if (b) { const [kind, id] = b.dataset.open.split(':'); openOrder(kind, id) }
-      })
+      }
       if (f) openOrder(f.kind, f.id)
     }
   }
@@ -477,7 +489,7 @@
         <div class="chat-in"><input id="ordMsg" maxlength="1000" placeholder="Message us…"><button class="btn small" id="ordSend">Send</button></div>
       </div>`
     const chat = $('.chat', view); if (chat) chat.scrollTop = chat.scrollHeight
-    view.addEventListener('click', async e => {
+    view.onclick = async e => {
       const c = e.target.closest('[data-copy-key]')
       if (c) return navigator.clipboard?.writeText(c.dataset.copyKey).then(() => { c.textContent = 'Copied ✓' })
       if (e.target.closest('[data-locker]')) {
@@ -491,7 +503,7 @@
         const t = $('#ordMsg').value.trim(); if (!t) return
         try { await call(url, { action: 'message', id: meta.id, token: meta.token, text: t }); $('#ordMsg').value = ''; openOrder(kind, id) } catch (x) { toast(x.message) }
       }
-    })
+    }
     $('#ordMsg')?.addEventListener('keydown', e => { if (e.key === 'Enter') $('#ordSend').click() })
   }
 
@@ -509,9 +521,9 @@
     if (!form) return
     form.addEventListener('submit', e => {
       e.preventDefault()
-      openLocker(form.name.value.trim(), form.key.value.trim())
+      openLocker(form.elements.namedItem('name').value.trim(), form.elements.namedItem('key').value.trim())
     })
-    if (LK) { form.name.value = LK.name; form.key.value = LK.key; openLocker(LK.name, LK.key, true) }
+    if (LK) { form.elements.namedItem('name').value = LK.name; form.elements.namedItem('key').value = LK.key; openLocker(LK.name, LK.key, true) }
     $('#vaultOut')?.addEventListener('click', () => {
       LK = null; setLs(K_LOCK, null)
       $('#vaultForm').reset()
@@ -561,7 +573,7 @@
       $('#vaultForm').hidden = false
       $('#vaultForm').reset()
     })
-    main.addEventListener('click', async e => {
+    main.onclick = async e => {
       const b = e.target.closest('[data-slot]')
       if (!b) return
       b.disabled = true
@@ -570,7 +582,7 @@
         drawLocker(r)
         toast(b.dataset.item ? 'Equipped — it shows in game now' : 'Taken off')
       } catch (x) { toast(x.message); b.disabled = false }
-    })
+    }
   }
 
   // ── account: Gmail / email sign-in, shared with the launcher ──
@@ -651,7 +663,7 @@
         btn.disabled = true
         try {
           const body2 = mode === 'up'
-            ? { action: 'signup', email: f.email.value, pass: f.pass.value, ign: f.ign.value, name: f.name.value }
+            ? { action: 'signup', email: f.email.value, pass: f.pass.value, ign: f.ign.value, name: f.elements.namedItem('name').value }
             : { action: 'login', email: f.email.value, pass: f.pass.value }
           const r = await call('/api/account', body2)
           ACC = { ...r.account, token: r.token }
@@ -685,7 +697,7 @@
     })
     $('#accOrders', body).addEventListener('click', () => { closeDrawer(d); showOrders() })
     $('#accVault', body).addEventListener('click', () => { closeDrawer(d); $('#vault').scrollIntoView({ behavior: 'smooth', block: 'center' }) })
-    body.addEventListener('click', async e => {
+    body.onclick = async e => {
       const b = e.target.closest('[data-aslot]')
       if (!b) return
       b.disabled = true
@@ -697,7 +709,7 @@
         toast(b.dataset.aitem ? 'Equipped — it shows in game now' : 'Taken off')
         if ($('#vaultMain') && !$('#vaultMain').hidden) drawAccVault()
       } catch (x) { toast(x.message); b.disabled = false }
-    })
+    }
   }
 
   // The vault section doubles as the account's locker when signed in.
@@ -722,7 +734,7 @@
       main.hidden = true; $('#vaultForm').hidden = false
       toast('Signed out')
     })
-    main.addEventListener('click', async e => {
+    main.onclick = async e => {
       const b = e.target.closest('[data-vslot]')
       if (!b) return
       b.disabled = true
@@ -733,7 +745,7 @@
         drawAccVault()
         toast(b.dataset.vitem ? 'Equipped — it shows in game now' : 'Taken off')
       } catch (x) { toast(x.message); b.disabled = false }
-    })
+    }
   }
 
   // Signing in swaps the key form for the account's own locker, and back again.
@@ -756,7 +768,7 @@
   async function init () {
     const [x, c] = await Promise.allSettled([call('/api/shop'), call('/api/cosmetics?r=shop')])
     if (x.status === 'fulfilled') CX = x.value
-    if (c.status === 'fulfilled') CC = c.value
+    if (c.status === 'fulfilled') { CC = c.value; window.XionCatalog = CC; cart = cart.filter(id => cosItem(id)) }
     else console.warn('cosmetics config unavailable:', c.reason?.message)
     if (CX?.pay?.bkash === '' && !$('#payWarn')?.dataset.init) { /* number is set from the admin panel */ }
     decorate()
@@ -774,6 +786,12 @@
       const d = drawer('cartDrawer', 'Your cart'); renderCart(); openDrawer(d)
     })
     $('#cartBtn')?.addEventListener('click', () => { const d = drawer('cartDrawer', 'Your cart'); renderCart(); openDrawer(d) })
+    addEventListener('xion:cart-add', e => {
+      const id = e.detail
+      if (!cosItem(id)) return toast('This look is included in Xion+ or the free launcher collection.')
+      if (!cart.includes(id)) { toggleCart(id) }
+      const d = drawer('cartDrawer', 'Your cart'); renderCart(); openDrawer(d)
+    })
     $('#ordersBtn')?.addEventListener('click', () => showOrders())
     $('#vaultLink')?.addEventListener('click', e => {
       if (!LK) return
@@ -783,7 +801,15 @@
     // Cards and set buttons are re-rendered by app.js filters, so keep decorating.
     const mo = new MutationObserver(() => decorate())
     for (const el of ['#grid', '#setGrid']) { const n = $(el); if (n) mo.observe(n, { childList: true }) }
-    addEventListener('keydown', e => { if (e.key === 'Escape') $$('.drawer.open').forEach(closeDrawer) })
+    addEventListener('keydown', e => {
+      if (e.key === 'Escape') $$('.drawer.open, .sheet.open').forEach(closeDrawer)
+      const open = $('.sheet.open') || $('.drawer.open')
+      if (e.key !== 'Tab' || !open) return
+      const nodes = $$('button, input, a, select', open).filter(n => !n.disabled && n.offsetParent !== null)
+      const first = nodes[0], last = nodes[nodes.length - 1]
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus() }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus() }
+    })
     // Open the order a buyer linked to, e.g. /#order=<kind>.<id>
     const m = /#order=(xion|cos)\.([0-9a-f]{16})/.exec(location.hash)
     if (m) showOrders()

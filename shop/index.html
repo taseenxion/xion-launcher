@@ -5,14 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Xion Shop — capes, cosmetics and Xion+</title>
   <meta name="description" content="Every Xion cape in one place: hand-painted animated capes, hats, wings and auras, plus everything Xion+ unlocks. Seen in game by every Xion Client player.">
-  <meta name="theme-color" content="#06080d">
+  <meta name="theme-color" content="#031d25">
   <link rel="icon" href="assets/logo.png">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=tide1">
+  <link rel="stylesheet" href="ocean.css?v=tide1">
+  <script type="importmap">{"imports":{"three":"./vendor/three/three.module.js","three/examples/jsm/":"./vendor/three/jsm/","skinview3d":"./vendor/skinview3d/skinview3d.js","skinview-utils":"./vendor/skinview-utils/index.js"}}</script>
 </head>
 <body>
   <div class="cursor-glow" aria-hidden="true"></div>
-  <div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
-  <div class="grain" aria-hidden="true"></div>
+   <div class="ocean-ambience" aria-hidden="true"><i></i><i></i></div>
+   <a class="skip-link" href="#capes">Skip to the cape shop</a>
 
   <header class="nav" id="nav">
     <a class="brand" href="#top"><img src="assets/logo.png" alt=""><b>Xion <em>Shop</em></b></a>
@@ -23,7 +25,8 @@
       <a href="#vault" id="vaultLink">Locker</a>
       <a href="#how">How it works</a>
     </nav>
-    <div class="nav-acts">
+     <div class="nav-acts">
+       <button class="nav-btn" id="motionBtn" type="button" aria-pressed="true" aria-label="Pause animations">◌<span>Motion on</span></button>
       <button class="nav-btn" id="accBtn" aria-label="Account"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c0-3.6 3.4-6 7.5-6s7.5 2.4 7.5 6"/></svg><span>Sign in</span></button>
       <button class="nav-btn" id="ordersBtn" aria-label="My orders"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/></svg><span>Orders</span></button>
       <button class="nav-btn" id="cartBtn" aria-label="Cart"></button>
@@ -33,45 +36,47 @@
 
   <main id="top">
     <!-- ── hero ── -->
-    <section class="hero">
-      <div class="hero-copy reveal">
-        <span class="tag"><i class="dot"></i> 136 capes · 8-frame animation · seen in game</span>
-        <h1>Wear something<br><span class="grad">nobody else has.</span></h1>
-        <p class="lede">Hand-painted capes that move: sunrise over a torii gate, autumn leaves coming down, neon rain at midnight. Every Xion Client player sees them — on your back and on your elytra.</p>
-        <div class="cta">
-          <a class="btn big" href="#capes">Browse the capes<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-          <a class="btn ghost" href="#plus">What Xion+ adds</a>
+    <section class="hero dive" id="journey" aria-label="Explore Xion+ underwater">
+      <div class="dive-sticky">
+        <div class="scene-poster" aria-hidden="true"></div>
+        <canvas id="oceanCanvas" aria-label="An original underwater voxel reef with a player wearing an animated cape"></canvas>
+        <div class="water-film" aria-hidden="true"><i></i><i></i><i></i></div>
+        <div class="dive-shade" aria-hidden="true"></div>
+        <div class="dive-heading"><span class="eyebrow">YOUR WORLD. A LITTLE MORE YOU.</span><h1>XION<span>+</span></h1></div>
+        <div class="dive-stories">
+          <div class="dive-story active" data-chapter="0">
+            <span class="chapter-number">01 / BELOW THE SURFACE</span>
+            <h2>Your next adventure,<br>upgraded.</h2>
+            <p>A look that’s yours. A setup that feels right. Dive into the capes, colours and little details that make Xion+ your own.</p>
+            <div class="cta"><a class="btn big" href="#plus">Discover Xion+ <span aria-hidden="true">↗</span></a><span class="hero-price">$5 <small>one-time. yours forever.</small></span></div>
+          </div>
+          <div class="dive-story" data-chapter="1" aria-hidden="true">
+            <span class="chapter-number">02 / LEAVE YOUR MARK</span>
+            <h2>Not just a cape.<br>Your signature.</h2>
+            <p>Hand-painted worlds in motion. Unlock Xion+ capes or upload your own, with matching elytra textures and a live 3D preview before you choose.</p>
+            <a class="btn big" href="#capes">Find your cape <span aria-hidden="true">→</span></a>
+          </div>
+          <div class="dive-story" data-chapter="2" aria-hidden="true">
+            <span class="chapter-number">03 / PLAY YOUR WAY</span>
+            <h2>More control.<br>More character.</h2>
+            <p>Turbo tuning. Chroma HUD colours. A custom crosshair. An animated gold badge beside your name. All tied to one Xion account.</p>
+            <a class="btn big" href="#plus">See what’s included <span aria-hidden="true">→</span></a>
+          </div>
         </div>
-        <ul class="stats">
-          <li><b data-count="136">0</b><span>capes</span></li>
-          <li><b data-count="12">0</b><span>animated sets</span></li>
-          <li><b data-count="8">0</b><span>frames each</span></li>
-        </ul>
-      </div>
-
-      <div class="hero-stage reveal">
-        <div class="float-card fc1" data-tilt>
-          <img id="heroA" src="assets/capes/an_moonwolf_0.png" alt="Moonlit Wolf cape">
-          <span class="fc-tag">Moonlit Wolf</span>
-        </div>
-        <div class="float-card fc2" data-tilt>
-          <img id="heroB" src="assets/capes/an_sunrise_0.png" alt="Sunrise Torii cape">
-          <span class="fc-tag">Sunrise Torii</span>
-        </div>
-        <div class="float-card fc3" data-tilt>
-          <img id="heroC" src="assets/capes/an_neonrain_2.png" alt="Neon Rain cape">
-          <span class="fc-tag">Neon Rain</span>
-        </div>
-        <div class="hero-ring" aria-hidden="true"></div>
+        <div class="explorer-tag"><i class="gold-badge" aria-hidden="true"></i><span>Xion Explorer</span><small>XION+</small></div>
+        <div class="hud-float" aria-hidden="true"><small>MAKE IT YOURS</small><b class="chroma-demo">XION+</b><div class="crosshair-demo"><i></i></div><span>Chroma + custom crosshair</span></div>
+        <div class="dive-route" aria-label="Underwater showcase chapters"><button data-chapter-jump="0" class="active" aria-label="Adventure chapter"></button><button data-chapter-jump="1" aria-label="Cape chapter"></button><button data-chapter-jump="2" aria-label="Features chapter"></button></div>
+        <div class="dive-bottom"><span>↓ <span id="diveHint">Scroll to dive deeper</span></span><button class="cape-switch" id="heroCapeSwitch" type="button" aria-label="Change the showcased cape"><i></i><span id="heroCapeName">Moon Tide</span><small>LIVE · 8 FRAMES</small> ↻</button></div>
+        <p class="scene-status" id="sceneStatus" role="status">Loading your underwater world…</p>
       </div>
     </section>
 
     <div class="marquee" aria-hidden="true">
       <div class="marquee-track">
-        <span>ANIME NOCTURNE</span><i></i><span>8 FRAMES PER CAPE</span><i></i><span>ELYRA MATCHES</span><i></i>
-        <span>NO MODS NEEDED</span><i></i><span>136 CAPES</span><i></i><span>SEEN IN GAME</span><i></i>
-        <span>ANIME NOCTURNE</span><i></i><span>8 FRAMES PER CAPE</span><i></i><span>ELYRA MATCHES</span><i></i>
-        <span>NO MODS NEEDED</span><i></i><span>136 CAPES</span><i></i><span>SEEN IN GAME</span><i></i>
+        <span>ANIME NOCTURNE</span><i></i><span>8 FRAMES PER CAPE</span><i></i><span>ELYTRA MATCHES</span><i></i>
+        <span>ONE XION ACCOUNT</span><i></i><span>136 CAPES</span><i></i><span>SEEN IN GAME</span><i></i>
+        <span>ANIME NOCTURNE</span><i></i><span>8 FRAMES PER CAPE</span><i></i><span>ELYTRA MATCHES</span><i></i>
+        <span>ONE XION ACCOUNT</span><i></i><span>136 CAPES</span><i></i><span>SEEN IN GAME</span><i></i>
       </div>
     </div>
 
@@ -79,7 +84,7 @@
     <section class="capes" id="capes">
       <div class="head reveal">
         <span class="tag">The locker</span>
-        <h2>Every cape, moving.<br><span class="dim">Hover to slow them down. Click to see it big.</span></h2>
+        <h2>A little piece of<br><span class="grad">your world.</span></h2><p class="section-intro">The actual cape artwork, not a stretched texture sheet. Pick one to inspect it on a player, rotate it, or preview the matching elytra.</p>
       </div>
       <div class="controls reveal">
         <div class="chips" id="chips"></div>
@@ -87,7 +92,8 @@
       </div>
       <div class="grid" id="grid"></div>
       <p class="empty" id="empty" hidden>Nothing matches that.</p>
-      <p class="count" id="count"></p>
+       <p class="count" id="count"></p>
+       <button class="btn ghost load-more" id="loadMore" type="button" hidden>Explore more capes <span aria-hidden="true">↓</span></button>
     </section>
 
     <!-- ── sets ── -->
@@ -107,12 +113,12 @@
           <h2>One account.<br><span class="grad-gold">Everything unlocked.</span></h2>
           <p class="lede">Xion+ is a one-time purchase tied to your Xion account, not a subscription. Sign in with the same email in the launcher and it unlocks there and in game &mdash; no key to paste.</p>
           <ul class="feat">
-            <li><i>✦</i><div><b>Every animated cape</b><span>All 136 capes plus hats, wings and auras — or upload your own 256×128 cape.</span></div></li>
+             <li><i>✦</i><div><b>Xion+ cape collection</b><span>Unlock the premium launcher capes, including hand-painted animated designs, or upload your own 256×128 cape.</span></div></li>
             <li><i>⚡</i><div><b>Turbo preset</b><span>The max-FPS graphics preset for iGPUs, on top of the free Boost and OG modes.</span></div></li>
             <li><i>🎨</i><div><b>Chroma colours</b><span>Cycling rainbow on HUD text and modules, on top of the Xion themes.</span></div></li>
-            <li><i>🛡</i><div><b>Xion+ badge</b><span>The badge next to your name in the tab list and F5, so people know.</span></div></li>
+             <li><i>🛡</i><div><b>Animated gold badge</b><span>A crowned, animated badge beside your name in the tab list and F5. Free players keep their animated blue badge.</span></div></li>
             <li><i>⚙</i><div><b>Premium module settings</b><span>The extra options inside HUD modules and the crosshair editor.</span></div></li>
-            <li><i>↻</i><div><b>Update priority</b><span>New cosmetics and presets land on your device the moment a build is out.</span></div></li>
+             <li><i>◈</i><div><b>Premium themes</b><span>Unlock the extra launcher themes and make your setup feel like yours.</span></div></li>
           </ul>
         </div>
         <div class="price-card reveal" data-tilt>
@@ -120,9 +126,9 @@
           <h3>Xion+</h3>
           <p class="price"><b>$5</b><span>or ৳150 · ₹350</span></p>
           <ul>
-            <li>Every cape, hat, wing and aura</li>
+             <li>All Xion+ launcher capes</li>
             <li>Custom cape upload</li>
-            <li>Turbo preset + OG extras</li>
+             <li>Turbo preset + premium themes</li>
             <li>Chroma colours and badge</li>
             <li>Follows your Xion account</li>
           </ul>
@@ -158,8 +164,8 @@
         <h2>From here to wearing it.</h2>
       </div>
       <ol class="steps">
-        <li class="reveal"><b>01</b><h3>Install Xion</h3><p>Download the launcher for Windows or Linux and pick any version from 1.18 to 26.3.</p></li>
-        <li class="reveal"><b>02</b><h3>Pick a cape</h3><p>Launcher → Cosmetics, or Right Shift → Cosmetics in game. The Anime chip is the new set.</p></li>
+         <li class="reveal"><b>01</b><h3>Sign in on Xion</h3><p>Use the same Xion account here and in the Windows or Linux launcher. Your purchases follow the account.</p></li>
+         <li class="reveal"><b>02</b><h3>Pick your look</h3><p>Preview your cape here, then choose it in the launcher or Right Shift → Capes in game.</p></li>
         <li class="reveal"><b>03</b><h3>Press play</h3><p>It shows on your back and your elytra instantly, and stays picked on every launch.</p></li>
       </ol>
     </section>
@@ -177,10 +183,14 @@
 
   <div class="lightbox" id="lightbox" hidden>
     <button class="lb-close" id="lbClose" aria-label="Close">✕</button>
-    <figure><img id="lbImg" alt=""><figcaption id="lbCap"></figcaption></figure>
+    <div class="cape-inspector" role="dialog" aria-modal="true" aria-labelledby="lbCap">
+      <div class="model-panel"><span class="preview-label">LIVE IN 3D</span><canvas id="previewCanvas" aria-label="Interactive Minecraft player and cape preview"></canvas><span class="model-hint" id="modelHint">Drag to rotate · scroll to zoom</span></div>
+      <div class="inspector-info"><span class="tag" id="lbTier">Cape preview</span><h2 id="lbCap"></h2><p>Every frame, exactly as it appears on your cape. Explore the back, front and matching elytra.</p><div class="inspector-art"><img id="lbImg" alt="Cape front-face texture"></div><div class="view-controls" aria-label="Preview angle"><button data-model-view="back" class="on" type="button">Cape</button><button data-model-view="front" type="button">Front</button><button data-model-view="elytra" type="button">Elytra</button></div><button class="btn wide" id="lbBuy" type="button">Get this look</button><span class="fine" id="lbNotice"></span></div>
+    </div>
   </div>
 
-  <script src="app.js"></script>
-  <script src="store.js"></script>
+  <script src="app.js?v=tide1"></script>
+  <script src="store.js?v=tide1"></script>
+  <script type="module" src="ocean.js?v=tide1"></script>
 </body>
 </html>
