@@ -1,7 +1,9 @@
 // XION AI proxy. The Gemini key stays in Vercel's encrypted GEMINI_API_KEY variable instead of
 // being shipped inside every public client jar.
 //   POST { contents: [{ role: "user"|"model", parts: [{ text }] }] }
-const MODELS = ['gemini-3.1-flash-lite', 'gemini-3.5-flash']
+// Shared Gemini capacity can reject one request and accept the next seconds later. Try the lighter
+// model again after the larger fallback so players rarely need to press Retry themselves.
+const MODELS = ['gemini-3.1-flash-lite', 'gemini-3.5-flash', 'gemini-3.1-flash-lite']
 const SYSTEM = [
   'You are XION AI, the friendly assistant built into Xion Launcher and Xion Client.',
   'You can answer anything: Minecraft tips, building ideas, redstone, servers, or general questions.',
@@ -62,7 +64,7 @@ async function ask (model, contents, key) {
         thinkingConfig: { thinkingBudget: 0 }
       }
     }),
-    signal: AbortSignal.timeout(11000)
+    signal: AbortSignal.timeout(7000)
   })
   const body = await response.json().catch(() => ({}))
   if (!response.ok) {
