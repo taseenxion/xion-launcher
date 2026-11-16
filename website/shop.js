@@ -275,7 +275,7 @@
   }
 
   // ---------- wire up ----------
-  $$('[data-buy], #buyPremium').forEach(b => b.addEventListener('click', e => { e.preventDefault(); openShop() }))
+  $$('[data-buy], #buyPremium').forEach(b => b.addEventListener('click', e => { e.preventDefault(); location.href = 'https://xion-shop.vercel.app/#plus' }))
   const m = /#order=([0-9a-f]{16})\.([0-9a-f]{32})/.exec(location.hash)
   if (m) { remember({ id: m[1], token: m[2], at: Date.now() }); showOrder(m[1], m[2]) }
   chip()

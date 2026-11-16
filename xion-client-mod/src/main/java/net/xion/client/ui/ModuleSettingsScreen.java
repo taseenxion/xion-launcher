@@ -123,7 +123,7 @@ public class ModuleSettingsScreen extends BaseScreen {
 			if (locked) g.fill(x + 5, swY + 6, x + 9, swY + 9, Colors.alpha(0xFF0B0D12, a));
 		}
 		if (!Premium.active()) {
-			String hint = "Custom colours & chroma: Xion Premium";
+			String hint = "Custom colours & chroma: Xion+";
 			g.text(hint, px + (pw - g.font.width(hint)) / 2, py + ph - 42, Colors.alpha(Colors.GOLD, a), false);
 		}
 		g.pop();

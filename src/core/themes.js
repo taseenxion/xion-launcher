@@ -14,7 +14,7 @@ const THEMES = [
 
 const byId = id => THEMES.find(t => t.id === id) || THEMES[0]
 
-/** Theme actually in effect: premium themes fall back to Nightfall without a valid license. */
+/** Theme actually in effect: premium themes fall back to Nightfall without Xion+. */
 function effective (id, premium) {
   const t = byId(id)
   return t.premium && !premium ? THEMES[0] : t

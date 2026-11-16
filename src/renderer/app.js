@@ -1171,7 +1171,7 @@ $('#capeGrid').addEventListener('click', async e => {
   if (!b) return
   const c = capes.list.find(x => x.id === b.dataset.cape)
   if (c && c.tier === 'pro' && !capes.premium && !capes.owned.includes(c.id)) {
-    toast(`${c.name} is a Xion+ cape. Add a license key to unlock all ${capes.list.length} capes.`)
+    toast(`${c.name} is a Xion+ cape. Sign in with the account that owns Xion+, or buy this cape on the shop.`)
     go('settings')
     setTimeout(() => $('#premiumCard').scrollIntoView({ behavior: 'smooth', block: 'center' }), 250)
     return
@@ -1216,7 +1216,7 @@ function drawOwnCape (img) {
 }
 
 $('#capeUpload').addEventListener('click', () => {
-  if (!capes.premium) { toast('Uploading your own cape is a Xion+ feature. Add a license key in Settings to unlock it.'); return }
+  if (!capes.premium) { toast('Uploading your own cape is a Xion+ feature. Sign in with the account that owns Xion+ in Settings to unlock it.'); return }
   $('#capeFile').click()
 })
 $('#capeFile').addEventListener('change', async e => {
@@ -1376,8 +1376,8 @@ $('#newsAll').addEventListener('click', () => xion.call('open:external', 'https:
 
 /* ---------------- Boot ---------------- */
 /* ---------------- Themes + Xion Premium ---------------- */
-const themeState = { themes: [], current: 'nightfall', premium: false, owner: null }
-const PREMIUM_URL = 'https://xionx.vercel.app/#premium'
+const themeState = { themes: [], current: 'nightfall', premium: false, owner: null, key: false, account: { signedIn: false, plus: false } }
+const PREMIUM_URL = 'https://xion-shop.vercel.app/#plus'
 
 // Applies a theme to the whole launcher: palette variables + backdrop layers, with a quick crossfade.
 function applyTheme (id, animate) {
@@ -1409,11 +1409,32 @@ function renderThemes () {
 }
 
 function renderPremium () {
-  $('#premiumCard').classList.toggle('active', themeState.premium)
-  if (!themeState.premium) return
-  $('#premiumTitle').textContent = 'Xion Premium is active'
-  $('#premiumText').textContent = 'Thank you for supporting Xion! Everything below is unlocked in the launcher and in game.'
-  $('#premiumActions').innerHTML = `<div class="premium-owner">Licensed to <b>${esc(themeState.owner || 'you')}</b></div><button class="btn ghost sm" id="removeKey">Remove key</button>`
+  const card = $('#premiumCard')
+  if (!card) return
+  const on = !!themeState.premium
+  card.classList.toggle('active', on)
+  const a = accState.data || { signedIn: false }
+  const title = $('#premiumTitle'), text = $('#premiumText'), actions = $('#premiumActions'), status = $('#premiumStatus')
+  if (on) {
+    title.textContent = 'Xion+ is active'
+    text.textContent = 'Everything below is unlocked in the launcher and in game on this account. Sign in with the same email on another PC and it follows you.'
+    actions.innerHTML = `${themeState.owner ? `<div class="premium-owner">Xion+ on <b>${esc(themeState.owner)}</b></div>` : ''}${themeState.key ? '<button class="btn ghost sm" id="removeKey">Remove old key</button>' : ''}`
+    status.innerHTML = a.signedIn
+      ? `<span>Xion account</span><small>${esc(a.email || a.ign || '')}${themeState.account && themeState.account.plus ? ' · Xion+ bought on this account' : ' · unlocked with your old license key'}</small>`
+      : '<span>Legacy license key</span><small>Your key keeps working. Sign in with a Xion account to move Xion+ onto the account and use it on any PC.</small>'
+    return
+  }
+  if (a.signedIn) {
+    title.textContent = 'Xion+'
+    text.textContent = `Signed in as ${a.ign || a.email}. Xion+ unlocks here automatically when the seller approves your order — no key.`
+    actions.innerHTML = '<button class="btn primary" id="openShopPlus">Get Xion+</button><button class="btn ghost" id="syncPlus">Check again</button>'
+    status.innerHTML = '<span>Waiting for Xion+</span><small>Buy Xion+ on the shop with this email. An approved purchase appears here within a few minutes.</small>'
+  } else {
+    title.textContent = 'Xion+'
+    text.textContent = 'One-time $5 · ৳150 · ₹350. Sign in with the same Xion account you buy with — Xion+ unlocks automatically here and in game once the seller approves your order. No key to paste.'
+    actions.innerHTML = '<button class="btn primary" id="openShopPlus">Get Xion+</button><button class="btn ghost" id="signInPlus">Sign in</button>'
+    status.innerHTML = '<span>No account signed in</span><small>Purchases follow the account, not this computer. Sign in above with the email you use on the shop.</small>'
+  }
 }
 
 function renderPerf () {
@@ -1429,7 +1450,7 @@ $('#perfGrid').addEventListener('click', e => {
   if (!b) return
   const m = b.dataset.perf
   if (m === 'turbo' && !themeState.premium) {
-    toast('Turbo is part of Xion Premium. Add a license key below to unlock it.')
+    toast('Turbo is part of Xion+. Sign in with the Xion account that owns Xion+ to unlock it.')
     $('#premiumCard').scrollIntoView({ behavior: 'smooth', block: 'center' })
     return
   }
@@ -1440,10 +1461,8 @@ $('#perfGrid').addEventListener('click', e => {
 })
 
 async function loadThemes () {
-  const lic = await xion.call('license:status')
   const list = await xion.call('themes:list')
-  if ($('#deviceId')) $('#deviceId').textContent = lic.device || ''
-  Object.assign(themeState, list, { owner: lic.premium ? lic.name : null })
+  Object.assign(themeState, list, { owner: list.owner || null })
   state.settings.theme = list.current
   applyTheme(list.current, false)
   renderThemes()
@@ -1456,9 +1475,8 @@ $('#themeGrid').addEventListener('click', async e => {
   if (!b) return
   const t = themeState.themes.find(x => x.id === b.dataset.theme)
   if (t.premium && !themeState.premium) {
-    toast(`${t.name} is a Xion Premium theme. Add a license key below to unlock it.`)
+    toast(`${t.name} is a Xion+ theme. Sign in with the account that owns Xion+ to use it.`)
     $('#premiumCard').scrollIntoView({ behavior: 'smooth', block: 'center' })
-    if ($('#licenseKey')) $('#licenseKey').focus()
     return
   }
   if (t.id === themeState.current) return
@@ -1470,24 +1488,28 @@ $('#themeGrid').addEventListener('click', async e => {
   toast(`${t.name} theme applied. The game picks it up on next launch.`, 'ok')
 })
 $('#premiumCard').addEventListener('click', async e => {
-  if (e.target.id === 'buyPremium') return xion.call('open:external', PREMIUM_URL)
-  if (e.target.id === 'copyDevice') { navigator.clipboard.writeText($('#deviceId').textContent).then(() => toast('Device ID copied', 'ok'), () => {}); return }
+  if (e.target.id === 'buyPremium' || e.target.id === 'openShopPlus') return xion.call('open:external', PREMIUM_URL)
+  if (e.target.id === 'signInPlus') {
+    $('#accCard')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    setTimeout(() => $('#accEmail')?.focus(), 350)
+    return
+  }
+  if (e.target.id === 'syncPlus') {
+    try {
+      accState.data = await xion.call('xion:refresh')
+      renderAccount()
+      await loadThemes()
+      await loadCapes()
+      toast('Xion+ status refreshed.', 'ok')
+    } catch (err) { toast(err.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, ''), 'err') }
+    return
+  }
   if (e.target.id === 'removeKey') {
     await api('license:remove')
     state.settings.licenseKey = ''
-    location.reload()
-    return
-  }
-  if (e.target.id !== 'activateKey') return
-  const key = $('#licenseKey').value.trim()
-  if (!key) return toast('Paste your license key first.', 'err')
-  try {
-    const r = await xion.call('license:activate', key)
-    state.settings.licenseKey = key
     await loadThemes()
-    toast(`Xion Premium unlocked. Welcome, ${r.name || 'friend'}!`, 'ok')
-  } catch (err) {
-    toast(err.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, ''), 'err')
+    toast('Old license key removed. Your account purchases still apply.')
+    return
   }
 })
 
@@ -1530,7 +1552,7 @@ function renderAccount () {
       <div><b>${esc(a.name || a.ign)}</b><span>${esc(a.email)} · linked to <b>${esc(a.ign)}</b></span></div>
       <button class="btn ghost sm" id="accOut">Sign out</button>
     </div>
-    <div class="acc-stats"><span><b>${own.length}</b> cosmetic${own.length === 1 ? '' : 's'} owned</span><span>Wearing <b>${esc(accCapeName(worn) || 'nothing')}</b></span><button class="btn ghost sm" id="accSync">Sync now</button></div>
+    <div class="acc-stats"><span><b>${own.length}</b> cosmetic${own.length === 1 ? '' : 's'} owned</span><span>${a.plus ? '<b>Xion+ active</b>' : 'Xion+ not active'}</span><span>Wearing <b>${esc(accCapeName(worn) || 'nothing')}</b></span><button class="btn ghost sm" id="accSync">Sync now</button></div>
     ${mine.length
       ? `<div class="acc-capes">${mine.slice(0, 18).map(c => `<button class="acc-cape ${worn === c.id ? 'on' : ''}" data-acape="${c.id}" title="${esc(c.name)}" style="background-image:url('${capeFile(c)}')"></button>`).join('')}</div>
          <p class="muted small">Click a cape you own to wear it. It applies on your next launch, and other players already see it in game.</p>`
@@ -1549,6 +1571,7 @@ async function accGo () {
       ? await xion.call('xion:signup', email.trim(), pass, ($('#accIgn') || {}).value || '', ($('#accName') || {}).value || '')
       : await xion.call('xion:login', email.trim(), pass)
     renderAccount()
+    await loadThemes()
     await loadCapes()
     toast(up ? 'Account created — you are signed in.' : `Signed in as ${accState.data.ign}.`, 'ok')
   } catch (err) {
@@ -1560,6 +1583,7 @@ async function accRefresh () {
   try {
     accState.data = await xion.call('xion:refresh')
     renderAccount()
+    await loadThemes()
     await loadCapes()
     toast('Account synced.', 'ok')
   } catch (err) { toast(err.message, 'err') }
@@ -1584,6 +1608,7 @@ $('#accBody')?.addEventListener('click', async e => {
   if (e.target.closest('#accOut')) {
     accState.data = await xion.call('xion:logout')
     renderAccount()
+    await loadThemes()
     await loadCapes()
     return toast('Signed out of your Xion account.')
   }
@@ -1591,6 +1616,15 @@ $('#accBody')?.addEventListener('click', async e => {
   if (chip) return accWearCape(chip.dataset.acape)
 })
 $('#accBody')?.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); accGo() } })
+// A purchase approved while the launcher is open arrives with the background sync.
+xion.on('xion:account', async () => {
+  try {
+    accState.data = await xion.call('xion:status')
+    renderAccount()
+    await loadThemes()
+    await loadCapes()
+  } catch {}
+})
 
 async function boot () {
   const [st, info, catalog] = await Promise.all([xion.call('state:get'), xion.call('app:info'), xion.call('mods:catalog')])

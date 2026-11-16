@@ -34,7 +34,7 @@ public final class Cosmetics {
 		}
 
 		public boolean usable() {
-			return !pro() || Premium.active();
+			return !pro() || Premium.active() || Premium.ownsCape(id);
 		}
 	}
 

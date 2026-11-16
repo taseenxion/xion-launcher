@@ -6,7 +6,9 @@ import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /** Persists Xion settings to config/xion-client.json and reads launcher hand-off data. */
@@ -79,7 +81,16 @@ public final class XionConfig {
 		public String account = "offline";
 		public String launcherVersion = "";
 		public Theme theme = new Theme();
+		/** Legacy device-locked key. New Xion+ lives on the account; this stays for old buyers. */
 		public String licenseKey = "";
+		/** Xion+ bought on the signed-in Xion account (or a valid legacy key). */
+		public boolean premium = false;
+		/** Display name to show as the Xion+ owner. */
+		public String premiumName = "";
+		/** Short-lived signed proof of the account's Xion+, used for the presence badge. */
+		public String premiumPass = "";
+		/** Pro capes bought individually on the account, unlocked even without full Xion+. */
+		public List<String> ownedCapes = new ArrayList<>();
 		/** off, boost (free) or turbo (Xion+). */
 		public String perfMode = "boost";
 		/** Folder with the cape set (capes.json + PNGs), and the cape picked in the launcher. */

@@ -53,12 +53,13 @@ public final class Presence {
 		if (!announce && now - lastFetch < FETCH_EVERY) return;
 		String id = mc.player.getUUID().toString().replace("-", "");
 		String key = Premium.active() ? XionConfig.launcher.licenseKey : "";
+		String pass = Premium.active() ? XionConfig.launcher.premiumPass : "";
 		if (announce) lastAnnounce = now;
 		lastFetch = now;
 		busy = true;
 		Thread t = new Thread(() -> {
 			try {
-				if (announce) post(id, key);
+				if (announce) post(id, key, pass);
 				fetch();
 			} catch (Exception ignored) {
 			} finally {
@@ -69,10 +70,11 @@ public final class Presence {
 		t.start();
 	}
 
-	private static void post(String id, String key) throws Exception {
+	private static void post(String id, String key, String pass) throws Exception {
 		JsonObject body = new JsonObject();
 		body.addProperty("id", id);
 		body.addProperty("key", key == null ? "" : key);
+		body.addProperty("pass", pass == null ? "" : pass);
 		HttpURLConnection c = open("POST");
 		c.setDoOutput(true);
 		c.setRequestProperty("Content-Type", "application/json");

@@ -24,5 +24,7 @@ const login = (email, pass) => call({ action: 'login', email, pass })
 const signup = ({ email, pass, ign, name }) => call({ action: 'signup', email, pass, ign, name })
 const me = token => call({ action: 'me', token }).then(r => r.account)
 const equip = (token, slot, item) => call({ action: 'equip', token, slot, item }).then(r => r.account)
+// Short-lived proof that this account owns Xion+, for the in-game presence call.
+const pass = token => call({ action: 'pass', token }).then(r => r.pass || '')
 
-module.exports = { login, signup, me, equip }
+module.exports = { login, signup, me, equip, pass }

@@ -142,7 +142,7 @@
          <div class="cart-total"><span>Total</span><b>${money(CUR, cartTotal())}</b></div>
          <div class="cur-pick">${['BDT', 'USD', 'INR'].map(c => `<button class="${c === CUR ? 'on' : ''}" data-cur="${c}">${SYM[c]} ${c}</button>`).join('')}</div>
          <button class="btn big wide" id="cartGo">Checkout with bKash or Nagad<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
-         <p class="fine">Payment is checked by hand. Your locker key arrives on your order page once it is approved.</p>`
+         <p class="fine">Payment is checked by hand. Cosmetics unlock on your order page, and Xion+ appears on your Xion account automatically.</p>`
       : '<p class="empty-cart">Your cart is empty. Every cape with a price tag can be bought.</p>'
     $('.dr-body', d).addEventListener('click', e => {
       const rm = e.target.closest('[data-rm]')
@@ -397,8 +397,9 @@
         r = await call('/api/shop', { action: 'order', ...details })
         remember({ kind: 'xion', id: r.id, token: r.token, at: Date.now(), title: 'Xion+', amount: CX.prices[st.currency], currency: st.currency })
       } else {
+        const hasPlus = cart.includes('xion_plus')
         r = await call('/api/cosmetics?r=shop', { action: 'order', ...details, cart })
-        remember({ kind: 'cos', id: r.id, token: r.token, at: Date.now(), title: cart.length === 1 && cosItem(cart[0]) ? cosItem(cart[0]).name : `${cart.length} cosmetics`, amount: st.discount != null ? st.discount : cartTotal(), currency: st.currency })
+        remember({ kind: 'cos', plus: hasPlus, id: r.id, token: r.token, at: Date.now(), title: hasPlus ? 'Xion+' : cart.length === 1 && cosItem(cart[0]) ? cosItem(cart[0]).name : `${cart.length} cosmetics`, amount: st.discount != null ? st.discount : cartTotal(), currency: st.currency })
         cart = []
         commitCart()
       }
@@ -437,8 +438,8 @@
     paint(focus)
     function paint (f) {
       $('.dr-body', d).innerHTML = list.length
-        ? `<div class="ord-list">${list.map(o => `<button class="ord-row" data-open="${o.kind}:${o.id}">${o.kind === 'xion' ? '<i class="tagx">XION+</i>' : '<i class="tagc">CAPES</i>'}<div><b>${esc(o.title)}</b><small>${new Date(o.at).toLocaleDateString()} · ${money(o.currency, o.amount)}</small></div><span class="arrow">›</span></button>`).join('')}</div><div id="ordView"></div>`
-        : '<p class="empty-cart">No orders from this browser yet. Place one and it will appear here, with your key.</p>'
+        ? `<div class="ord-list">${list.map(o => `<button class="ord-row" data-open="${o.kind}:${o.id}">${(o.plus || o.kind === 'xion') ? '<i class="tagx">XION+</i>' : '<i class="tagc">CAPES</i>'}<div><b>${esc(o.title)}</b><small>${new Date(o.at).toLocaleDateString()} · ${money(o.currency, o.amount)}</small></div><span class="arrow">›</span></button>`).join('')}</div><div id="ordView"></div>`
+        : '<p class="empty-cart">No orders from this browser yet. Place one and it will appear here with its status.</p>'
       $('.dr-body', d).addEventListener('click', e => {
         const b = e.target.closest('[data-open]')
         if (b) { const [kind, id] = b.dataset.open.split(':'); openOrder(kind, id) }
@@ -459,18 +460,19 @@
     let o
     try { o = await call(url, { action: 'status', id: meta.id, token: meta.token }) } catch (e) { view.innerHTML = `<p class="sh-lead">${esc(e.message)}</p>`; return }
     const [label, lvl] = STATUS[o.status] || STATUS.pending
-    const key = kind === 'xion' ? o.key : o.lockerKey
+    const plusOrder = kind === 'xion' || meta.plus
+    const key = kind === 'xion' ? o.key : meta.plus ? '' : o.lockerKey
     view.innerHTML = `
       <div class="ord-card">
         <div class="ord-meta"><b>#${o.id.slice(0, 6).toUpperCase()}</b><span>${esc(o.ign || '')}</span><span>${o.amount === 0 ? 'Free code' : money(o.currency, o.amount)}</span></div>
-        <ol class="ord-steps ${lvl < 0 ? 'bad' : ''}">${[kind === 'xion' ? 'Order sent' : 'Order sent', 'Payment confirmed', kind === 'xion' ? 'Key sent' : 'Cosmetics unlocked'].map((s, i) => `<li class="${lvl < 0 ? (i === 0 ? 'on' : '') : i < lvl ? 'on' : ''}">${lvl < 0 && i === 1 ? 'Not confirmed' : s}</li>`).join('')}</ol>
+        <ol class="ord-steps ${lvl < 0 ? 'bad' : ''}">${['Order sent', 'Payment confirmed', plusOrder ? 'Xion+ unlocked' : 'Cosmetics unlocked'].map((s, i) => `<li class="${lvl < 0 ? (i === 0 ? 'on' : '') : i < lvl ? 'on' : ''}">${lvl < 0 && i === 1 ? 'Not confirmed' : s}</li>`).join('')}</ol>
         ${key
           ? `<div class="ord-key"><small>${kind === 'xion' ? 'Your Xion+ license key' : 'Your locker key'}</small><code>${esc(key)}</code>
              <button class="btn small" data-copy-key="${esc(key)}">Copy key</button>
              ${kind === 'xion' ? '<a class="btn ghost small" href="https://xionx.vercel.app/#download">How to activate ↗</a>' : '<button class="btn ghost small" data-locker="1">Open my locker</button>'}
              </div>`
-          : `<p class="ord-wait">${esc(label)}… your key appears here once it is approved.</p>`}
-        ${kind === 'xion' ? '' : '<p class="fine">Paste the locker key below in “Your locker” to equip what you bought.</p>'}
+          : `<p class="ord-wait">${esc(label)}… ${plusOrder ? 'Xion+ appears on your Xion account as soon as it is approved, then in the launcher and in game.' : 'your key appears here once it is approved.'}</p>`}
+        ${meta.plus ? '<p class="fine">Signed in on the launcher with the same Xion account? Xion+ unlocks there automatically after approval.</p>' : kind === 'xion' ? '' : '<p class="fine">Paste the locker key below in “Your locker” to equip what you bought.</p>'}
         <div class="chat">${(o.messages || []).map(m => `<div class="msg ${esc(m.from)}"><p>${esc(m.text)}</p><small>${m.from === 'buyer' ? 'You' : 'Xion'} · ${new Date(m.at).toLocaleString()}</small></div>`).join('')}</div>
         <div class="chat-in"><input id="ordMsg" maxlength="1000" placeholder="Message us…"><button class="btn small" id="ordSend">Send</button></div>
       </div>`
@@ -665,9 +667,9 @@
       return
     }
 
-    const own = ACC.owned || []
+    const own = (ACC.owned || []).filter(id => { const i = cosItem(id); return i && i.type !== 'plus' })
     body.innerHTML = `<div class="acc-who"><div><b>${esc(ACC.name || ACC.ign)}</b><small>${esc(ACC.email)} · linked to <b>${esc(ACC.ign)}</b></small></div><button class="link" id="accOut">Sign out</button></div>
-      <div class="acc-stats"><span><b>${own.length}</b> cosmetic${own.length === 1 ? '' : 's'} owned</span><button class="btn ghost small" id="accOrders">My orders</button><button class="btn ghost small" id="accVault">My locker</button></div>
+      <div class="acc-stats"><span><b>${own.length}</b> cosmetic${own.length === 1 ? '' : 's'} owned</span><span>${ACC.plus ? '<b>Xion+ active</b>' : 'No Xion+'}</span><button class="btn ghost small" id="accOrders">My orders</button><button class="btn ghost small" id="accVault">My locker</button></div>
       ${EQUIP_SLOTS.map(([slot, label]) => {
         const items = own.map(id => cosItem(id)).filter(i => i && i.type === slot && !i.items)
         const worn = (ACC.equipped || {})[slot]
@@ -704,7 +706,7 @@
     if (!main || !signedIn()) return
     form.hidden = true
     main.hidden = false
-    const own = ACC.owned || []
+    const own = (ACC.owned || []).filter(id => { const i = cosItem(id); return i && i.type !== 'plus' })
     main.innerHTML = `<div class="vault-who"><b>${esc(ACC.ign)}</b><span>signed in as ${esc(ACC.email)} · ${own.length} item${own.length === 1 ? '' : 's'}</span><button class="link" id="vaultAccOut">Sign out</button></div>
       ${EQUIP_SLOTS.map(([slot, label]) => {
         const items = own.map(id => cosItem(id)).filter(i => i && i.type === slot && !i.items)
@@ -763,7 +765,14 @@
     bindLocker()
     await initAccount()
     const plusBtn = $('#buyPlus')
-    if (plusBtn) plusBtn.addEventListener('click', e => { e.preventDefault(); sheetOpen('xion') })
+    if (plusBtn) plusBtn.addEventListener('click', e => {
+      e.preventDefault()
+      if (!CC) return toast('The shop is still loading. Try again in a second.')
+      if (!cosItem('xion_plus')) return toast('Xion+ is not available right now.')
+      if (cart.includes('xion_plus')) toast('Xion+ is already in your cart')
+      else { cart.push('xion_plus'); commitCart(); toast('Xion+ added to your cart') }
+      const d = drawer('cartDrawer', 'Your cart'); renderCart(); openDrawer(d)
+    })
     $('#cartBtn')?.addEventListener('click', () => { const d = drawer('cartDrawer', 'Your cart'); renderCart(); openDrawer(d) })
     $('#ordersBtn')?.addEventListener('click', () => showOrders())
     $('#vaultLink')?.addEventListener('click', e => {

@@ -15,7 +15,8 @@ const BUNDLED_DIR = path.join(__dirname, '..', 'assets', 'mods')
 const ASSETS_DIR = path.join(__dirname, '..', 'assets')
 const themes = require('./themes')
 const perf = require('./perf')
-const license = require('./license')
+const entitlements = require('./entitlements')
+const xionAcc = require('./xion')
 const pvp = require('./pvp')
 
 // Xion Client jars ship with the launcher, named xion-client-<mcversion>.jar.
@@ -95,13 +96,23 @@ async function launch (profileId, opts, emit) {
 
     // Hand-off for the in-game Xion Client: account type and custom skin.
     fs.mkdirSync(path.join(gameDir, 'config'), { recursive: true })
-    // Theme + Premium: the client re-verifies the license key itself, so editing this file unlocks nothing.
-    const premium = license.verify(s.licenseKey).valid
+    // Theme + Xion+: account entitlement (or a legacy key). The game also gets the list of capes
+    // bought individually, so those unlock without the full Xion+ package.
+    const premium = entitlements.premium(s)
+    const premiumName = premium ? entitlements.name(s) : ''
     const theme = themes.prepareForGame(themes.effective(s.theme, premium), gameDir, ASSETS_DIR)
     const perfMode = perf.effective(s.perfMode, premium)
     perf.prepareGame(gameDir, perfMode)
+    // Short-lived proof for the in-game gold badge. Never block launch on it.
+    let premiumPass = ''
+    if (premium && s.xion && s.xion.token) {
+      premiumPass = await Promise.race([
+        xionAcc.pass(s.xion.token).catch(() => ''),
+        new Promise(resolve => setTimeout(() => resolve(''), 3000))
+      ])
+    }
     const userJvm = (s.jvmArgs || '').split(/\s+/).filter(Boolean)
-    fs.writeFileSync(path.join(gameDir, 'config', 'xion-launcher.json'), JSON.stringify({ ...skins.launchInfo(), launcherVersion: require('../../package.json').version, theme, perfMode, licenseKey: premium ? s.licenseKey : '', pvp: isPvp, ...cosmetics.handoff(root, s, premium) }, null, 2))
+    fs.writeFileSync(path.join(gameDir, 'config', 'xion-launcher.json'), JSON.stringify({ ...skins.launchInfo(), launcherVersion: require('../../package.json').version, theme, perfMode, premium, premiumName, premiumPass, ownedCapes: s.ownedCapes || [], licenseKey: entitlements.hasKey(s) ? s.licenseKey : '', pvp: isPvp, ...cosmetics.handoff(root, s, premium) }, null, 2))
 
     const client = new Client()
     const options = {

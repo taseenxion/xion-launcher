@@ -7,6 +7,7 @@
 const crypto = require('crypto')
 const S = require('./_store')
 const kv = require('../lib/kv')
+const A = require('../lib/acc')
 
 const ID = /^[0-9a-f]{32}$/
 const TTL = 20 * 60 * 1000
@@ -36,7 +37,7 @@ module.exports = async (req, res) => {
       const b = req.body && typeof req.body === 'object' ? req.body : {}
       const id = String(b.id || '').replace(/-/g, '').toLowerCase()
       if (!ID.test(id)) return S.send(res, 400, { error: 'bad id' })
-      const pro = isPro(b.key)
+      const pro = isPro(b.key) || A.verifyPass(b.pass)
       const k = id + (pro ? 'p' : 'f')
       if (Date.now() - (seen.get(k) || 0) > REFRESH) {
         await kv.cmd('ZADD', 'presence', Date.now(), k)

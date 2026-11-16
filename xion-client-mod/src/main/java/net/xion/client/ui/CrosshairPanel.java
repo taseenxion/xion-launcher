@@ -48,7 +48,7 @@ final class CrosshairPanel {
 	}
 
 	void draw(Gfx g, int x, int y, int w, float a) {
-		String who = Premium.owner().isEmpty() ? "Xion Premium active" : "Xion Premium  ·  " + Premium.owner();
+		String who = Premium.owner().isEmpty() ? "Xion+ active" : "Xion+  ·  " + Premium.owner();
 		g.text(g.font.plainSubstrByWidth(who, w), x, y + 2, Colors.alpha(Colors.GOLD, a), false);
 		g.text("Thanks for supporting Xion!", x, y + 14, Colors.alpha(Colors.MUTED, a), false);
 		g.text("Custom crosshair", x, y + 34, Colors.alpha(Colors.TEXT, a), false);

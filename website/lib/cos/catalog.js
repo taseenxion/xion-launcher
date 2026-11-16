@@ -109,9 +109,21 @@ function bundlePrice (set) {
   return out
 }
 
+// Xion+ is an account entitlement, not a cosmetic: buying it adds "xion_plus" to the buyer's
+// account, and every Xion+ feature unlocks whenever that account is signed in (launcher and game).
+// It lives in the catalog so cart pricing and admin grants work exactly like a cosmetic.
+const PLUS = {
+  id: 'xion_plus',
+  name: 'Xion+',
+  type: 'plus',
+  rarity: 'legendary',
+  desc: 'Unlocks every Xion+ cape, your own cape upload, Turbo mode, premium themes, chroma, custom crosshairs and pro HUD modules on your Xion account.',
+  price: { USD: 5, BDT: 150, INR: 350 }
+}
+
 const BUNDLES = SETS.map(s => ({ ...s, id: 'bundle_' + s.id, set: s.id, items: ITEMS.filter(i => i.set === s.id).map(i => i.id), price: bundlePrice(s) }))
-const CATALOG_ITEMS = ITEMS.map(i => ({ ...i, price: itemPrice(i) }))
+const CATALOG_ITEMS = [...ITEMS.map(i => ({ ...i, price: itemPrice(i) })), PLUS]
 
 const byId = id => CATALOG_ITEMS.find(i => i.id === id) || BUNDLES.find(b => b.id === id) || null
 
-module.exports = { ITEMS: CATALOG_ITEMS, BUNDLES, SETS, PRICE, byId }
+module.exports = { ITEMS: CATALOG_ITEMS, BUNDLES, SETS, PRICE, PLUS, byId }

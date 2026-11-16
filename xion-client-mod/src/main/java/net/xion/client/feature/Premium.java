@@ -15,9 +15,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Xion Premium. The launcher passes the player's license key along; the client verifies its Ed25519
- * signature itself, and a key made for a Device ID only unlocks on that computer, so editing or copying
- * config files cannot unlock anything.
+ * Xion+. The launcher passes the account entitlement (Xion+ bought on the signed-in Xion account)
+ * and, for older buyers, the device-locked license key. The key is still verified here, so copying
+ * or editing the hand-off doesn't unlock a legacy key on another computer. Account passes also carry
+ * the list of individually bought capes.
  */
 public final class Premium {
 	private static final String PUBLIC_KEY_B64 = "a5cn2efk6Jh2DpcxBDUHDQPOVIGFE5Xhdz+uMkp8wa4=";
@@ -28,13 +29,21 @@ public final class Premium {
 	private Premium() {}
 
 	public static boolean active() {
-		if (cached == null) cached = verify(XionConfig.launcher.licenseKey);
+		if (cached == null) {
+			cached = XionConfig.launcher.premium || verify(XionConfig.launcher.licenseKey);
+		}
 		return cached;
 	}
 
-	/** Name the license was issued to (empty when not premium). */
+	/** True when this cape was bought on the account even without the full Xion+ package. */
+	public static boolean ownsCape(String id) {
+		return id != null && XionConfig.launcher.ownedCapes != null && XionConfig.launcher.ownedCapes.contains(id);
+	}
+
+	/** Name the account or license belongs to (empty when not premium). */
 	public static String owner() {
-		active();
+		if (!active()) return "";
+		if (XionConfig.launcher.premiumName != null && !XionConfig.launcher.premiumName.isEmpty()) return XionConfig.launcher.premiumName;
 		return owner;
 	}
 

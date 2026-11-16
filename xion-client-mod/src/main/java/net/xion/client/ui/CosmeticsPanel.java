@@ -90,7 +90,7 @@ final class CosmeticsPanel {
 			: hoverNone ? "No cape" : worn != null ? "Wearing: " + worn.name : "Pick a cape";
 		g.text(line, x, y + 2, Colors.alpha(hover != null && hover.pro() ? Colors.GOLD : Colors.TEXT, a), false);
 		String sub = Cosmetics.capes().isEmpty() ? "Cape set not found. Launch the game from Xion Launcher."
-			: (Premium.active() ? "Yours and your elytra's  ·  only you see them" : "Xion+ capes need a key from Xion Launcher");
+			: (Premium.active() ? "Yours and your elytra's  ·  only you see them" : "Xion+ capes unlock when you sign in on Xion Launcher");
 		g.text(g.font.plainSubstrByWidth(sub, w), x, y + 12, Colors.alpha(Colors.MUTED, a), false);
 
 		int chipX = x;

@@ -11,12 +11,15 @@ const kv = require('./kv')
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const IGN = /^[A-Za-z0-9_]{3,16}$/
 const SLOTS = ['cape', 'hat', 'wings', 'aura']
+const PLUS_ID = 'xion_plus'
 const NS = 'accounts/'
 const MAX_ORDERS = 40
+const PASS_TTL = 7 * 24 * 3600 * 1000
 
 const id = () => crypto.randomBytes(9).toString('hex')
 const sha = s => crypto.createHash('sha256').update(String(s)).digest('hex')
 const safeEq = (a, b) => { const x = Buffer.from(String(a)), y = Buffer.from(String(b)); return x.length === y.length && crypto.timingSafeEqual(x, y) }
+const plus = a => !!(a && Array.isArray(a.owned) && a.owned.includes(PLUS_ID))
 const accPath = i => NS + i + '.json'
 const mailPath = email => NS + 'e/' + sha(String(email).trim().toLowerCase()).slice(0, 40) + '.json'
 const get = i => kv.readJSON(accPath(i))
@@ -48,6 +51,22 @@ function idFromToken (tok) {
   return p[1]
 }
 
+// ── Xion+ passes ──
+// A short-lived proof the account owns Xion+, for the in-game presence call. The client never sees
+// the 30-day session token, and the pass unlocks nothing on its own.
+function passFor (a) {
+  if (!plus(a) || !secret()) return ''
+  const body = `xpp.${a.id}.${Date.now() + PASS_TTL}`
+  return body + '.' + crypto.createHmac('sha256', secret()).update(body).digest('hex')
+}
+function verifyPass (tok) {
+  const p = String(tok || '').trim().split('.')
+  if (p.length !== 4 || p[0] !== 'xpp' || !secret()) return false
+  const body = p[0] + '.' + p[1] + '.' + p[2]
+  const want = crypto.createHmac('sha256', secret()).update(body).digest('hex')
+  return safeEq(want, p[3]) && +p[2] > Date.now()
+}
+
 // ── rate limiting for sign-in (per warm instance, so it costs no storage reads) ──
 const tries = new Map()
 function limited (key, max, windowMs) {
@@ -63,7 +82,7 @@ function limited (key, max, windowMs) {
 const clean = (v, max) => String(v == null ? '' : v).trim().slice(0, max)
 const view = a => ({
   id: a.id, email: a.email, name: a.name, ign: a.ign, created: a.created,
-  owned: a.owned || [], equipped: a.equipped || {}, orders: (a.orders || []).slice(0, MAX_ORDERS)
+  plus: plus(a), owned: a.owned || [], equipped: a.equipped || {}, orders: (a.orders || []).slice(0, MAX_ORDERS)
 })
 
 async function signup ({ email, pass, ign, name }) {
@@ -118,11 +137,14 @@ async function addOrder (a, o) {
 // Mirrors an account's ownership onto the public player record, so the game sees it.
 async function publishPlayer (a) {
   const S = require('./cos/_cos')
+  const C = require('./cos/catalog')
   let p = await S.getPlayer(a.ign)
   if (!p) p = { name: a.ign.toLowerCase(), display: a.ign, keyHash: '', owned: [], equipped: {}, created: Date.now() }
   p.display = a.ign
   p.accountId = a.id
-  p.owned = [...new Set([...(p.owned || []), ...(a.owned || [])])]
+  // Only wearables belong in the player record; entitlements like xion_plus stay on the account.
+  const wearables = (a.owned || []).filter(i => { const it = C.byId(i); return it && SLOTS.includes(it.type) })
+  p.owned = [...new Set([...(p.owned || []), ...wearables])]
   p.equipped = { ...(p.equipped || {}) }
   for (const s of SLOTS) {
     if (a.equipped && a.equipped[s] && p.owned.includes(a.equipped[s])) p.equipped[s] = a.equipped[s]
@@ -159,11 +181,24 @@ async function grantItems (accountId, ign, items) {
   const C = require('./cos/catalog')
   for (const i of items) {
     const it = C.byId(i)
-    if (it && it.type && !a.equipped[it.type]) a.equipped[it.type] = i
+    if (it && SLOTS.includes(it.type) && !a.equipped[it.type]) a.equipped[it.type] = i
   }
   await save(a)
   await publishPlayer(a)
   return view(a)
 }
 
-module.exports = { signup, login, fromToken, addOrder, equip, grantItems, publishPlayer, view, idFromToken, findByIgn, EMAIL, IGN, SLOTS }
+// Takes items back when an order is rejected. `keep` holds ids another approved order (or a gift)
+// still grants, so a refund never removes something the player paid for twice.
+async function revokeItems (accountId, items, keep = []) {
+  const a = accountId && await get(accountId)
+  if (!a) return null
+  const kept = new Set(keep)
+  a.owned = (a.owned || []).filter(i => !items.includes(i) || kept.has(i))
+  for (const s of SLOTS) if (a.equipped && a.equipped[s] && !a.owned.includes(a.equipped[s])) delete a.equipped[s]
+  await save(a)
+  await publishPlayer(a)
+  return view(a)
+}
+
+module.exports = { signup, login, fromToken, addOrder, equip, grantItems, revokeItems, publishPlayer, view, idFromToken, findByIgn, passFor, verifyPass, plus, PLUS_ID, EMAIL, IGN, SLOTS }

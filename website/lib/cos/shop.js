@@ -81,6 +81,10 @@ module.exports = async (req, res) => {
       if (c && c.invalid) return S.send(res, 400, { error: 'That code is not valid or has been used up.' })
       const q = priceCart(b.cart, currency, c)
       if (!q.lines.length) return S.send(res, 400, { error: 'Your cart is empty.' })
+      // Xion+ is saved to the account, so it must be bought while signed in. Otherwise the
+      // approval has nowhere to go and the buyer would have to wait for a manual grant.
+      const acct = await A.fromToken(b.token)
+      if (q.grants.includes(A.PLUS_ID) && !acct) return S.send(res, 400, { error: 'Sign in to your Xion account first, so Xion+ is unlocked on it.' })
 
       let method = S.clean(b.method, 20), payer = '', trx = '', shot = null
       if (q.total > 0) {
@@ -98,7 +102,6 @@ module.exports = async (req, res) => {
       if (!(await S.limit(req, 'order', 6, 3600 * 1000))) return S.send(res, 429, { error: 'Too many orders from your network. Try again in an hour.' })
 
       const oid = S.id(8), token = S.id(16)
-      const acct = await A.fromToken(b.token)
       if (shot) await S.writeBytes(`shots/${oid}`, shot.data, shot.type)
       const order = {
         id: oid, token, created: Date.now(), status: 'pending', ign, email, currency, amount: q.total, subtotal: q.subtotal,

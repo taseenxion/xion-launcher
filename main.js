@@ -16,6 +16,7 @@ const skins = require('./src/core/skins')
 const modrinth = require('./src/core/modrinth')
 const themes = require('./src/core/themes')
 const license = require('./src/core/license')
+const entitlements = require('./src/core/entitlements')
 const xionAcc = require('./src/core/xion')
 const cosmetics = require('./src/core/cosmetics')
 const updater = require('./src/core/updater')
@@ -83,6 +84,7 @@ app.whenReady().then(() => {
     const x = store.get().settings.xion || {}
     return {
       signedIn: !!x.token, email: x.email || '', name: x.name || '', ign: x.ign || '',
+      plus: Array.isArray(x.owned) && x.owned.includes(entitlements.PLUS_ID),
       owned: x.owned || [], equipped: x.equipped || {}, at: x.at || 0
     }
   }
@@ -219,23 +221,30 @@ app.whenReady().then(() => {
     store.save()
     return d.settings
   })
-  // Themes + Xion Premium
+  // Themes + Xion+ (account entitlement, or a legacy license key)
   handle('themes:list', () => {
     const s = store.get().settings
-    const premium = license.verify(s.licenseKey).valid
-    return { themes: themes.THEMES, current: themes.effective(s.theme, premium).id, premium }
+    const premium = entitlements.premium(s)
+    return {
+      themes: themes.THEMES,
+      current: themes.effective(s.theme, premium).id,
+      premium,
+      owner: entitlements.name(s),
+      key: entitlements.hasKey(s),
+      account: { signedIn: !!(s.xion && s.xion.token), plus: entitlements.ownsPlus(s) }
+    }
   })
-  // Cosmetics: the cape set and the player's pick (Xion+ capes need a valid key).
+  // Cosmetics: the cape set and the player's pick (Xion+ capes need Xion+ or that cape bought).
   handle('cosmetics:list', () => {
     const s = store.get().settings
     const own = cosmetics.custom(s)
     const list = own ? [{ ...own, src: cosmetics.customDataUrl(s) }, ...cosmetics.catalog()] : cosmetics.catalog()
-    return { capes: list, selected: s.cape || '', premium: license.verify(s.licenseKey).valid, owned: s.ownedCapes || [] }
+    return { capes: list, selected: s.cape || '', premium: entitlements.premium(s), owned: s.ownedCapes || [] }
   })
   // Xion+ only: the renderer sends the cape already drawn onto a 256x128 canvas.
   handle('cosmetics:upload', dataUrl => {
     const s = store.get().settings
-    if (!license.verify(s.licenseKey).valid) throw new Error('PREMIUM')
+    if (!entitlements.premium(s)) throw new Error('PREMIUM')
     const m = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(String(dataUrl || ''))
     if (!m || m[1].length > 3_000_000) throw new Error('That image could not be used.')
     const png = Buffer.from(m[1], 'base64')
@@ -258,7 +267,7 @@ app.whenReady().then(() => {
     const c = id ? cosmetics.byId(id, s) : null
     if (id && !c) throw new Error('Unknown cape')
     const mine = Array.isArray(s.ownedCapes) ? s.ownedCapes : []
-    if (c && c.tier === 'pro' && !license.verify(s.licenseKey).valid && !mine.includes(c.id)) throw new Error('PREMIUM')
+    if (c && c.tier === 'pro' && !entitlements.premium(s) && !mine.includes(c.id)) throw new Error('PREMIUM')
     s.cape = c ? c.id : ''
     s.capeRev = (s.capeRev || 0) + 1
     store.save()
@@ -267,7 +276,7 @@ app.whenReady().then(() => {
   handle('themes:set', id => {
     const s = store.get().settings
     const t = themes.byId(id)
-    if (t.premium && !license.verify(s.licenseKey).valid) throw new Error('PREMIUM')
+    if (t.premium && !entitlements.premium(s)) throw new Error('PREMIUM')
     s.theme = t.id
     store.save()
     return t.id
@@ -283,8 +292,16 @@ app.whenReady().then(() => {
   })
 
   handle('license:status', () => {
-    const r = license.verify(store.get().settings.licenseKey)
-    return { ...(r.valid ? { premium: true, name: r.name, email: r.email } : { premium: false }), device: license.deviceIdDisplay() }
+    const s = store.get().settings
+    const key = license.verify(s.licenseKey)
+    return {
+      premium: entitlements.premium(s),
+      name: entitlements.name(s),
+      email: key.valid ? key.email : ((s.xion && s.xion.email) || ''),
+      key: key.valid,
+      plus: entitlements.ownsPlus(s),
+      device: license.deviceIdDisplay()
+    }
   })
   handle('license:activate', key => {
     const r = license.verify(key)
@@ -296,9 +313,9 @@ app.whenReady().then(() => {
   handle('license:remove', () => {
     const s = store.get().settings
     s.licenseKey = ''
-    if (themes.byId(s.theme).premium) s.theme = 'nightfall'
+    if (!entitlements.premium(s) && themes.byId(s.theme).premium) s.theme = 'nightfall'
     store.save()
-    return { premium: false }
+    return { premium: entitlements.premium(s) }
   })
 
   // Xion account: one email/password for the shop and the launcher.
@@ -321,11 +338,22 @@ app.whenReady().then(() => {
     const s = store.get().settings
     delete s.xion
     s.ownedCapes = []
+    // If nothing else unlocks Xion+ (a legacy key), fall back to free theme/cape too.
+    if (!entitlements.premium(s)) {
+      if (themes.byId(s.theme).premium) s.theme = 'nightfall'
+      const c = cosmetics.byId(s.cape, s)
+      if (c && c.tier === 'pro') { s.cape = ''; s.capeRev = (s.capeRev || 0) + 1 }
+    }
     store.save()
     return xionPublic()
   })
-  // Pull latest purchases in the background once the window is up; failures stay quiet (offline).
-  setTimeout(() => { xionSync().catch(() => {}) }, 4000)
+  // Pull latest purchases in the background once the window is up, then every few minutes, so
+  // an approval made while the launcher is open appears without a restart. Failures stay quiet.
+  const xionSyncQuiet = async () => {
+    try { send('xion:account', await xionSync()) } catch {}
+  }
+  setTimeout(xionSyncQuiet, 4000)
+  setInterval(xionSyncQuiet, 5 * 60 * 1000)
 
   handle('settings:pickJava', async () => {
     const r = await dialog.showOpenDialog(win, { title: 'Select java executable', filters: [{ name: 'Java', extensions: process.platform === 'win32' ? ['exe'] : ['*'] }], properties: ['openFile'] })

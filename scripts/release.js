@@ -14,6 +14,7 @@
 
 const fs = require('fs')
 const path = require('path')
+const os = require('os')
 const https = require('https')
 const { execSync, spawnSync } = require('child_process')
 
@@ -271,6 +272,39 @@ function syncWebsiteDownloads (websiteDir) {
   }
 }
 
+// Vercel's dashboard can be pointed at a subfolder (Root Directory "website"), which is what makes
+// pushes to main build the site. The CLI, however, uploads the folder it runs in and refuses a project
+// whose Root Directory is still set. So: read the setting, clear it, deploy from website/, put it back.
+function vercelToken () {
+  const files = [
+    path.join(os.homedir(), '.local', 'share', 'com.vercel.cli', 'auth.json'),
+    path.join(os.homedir(), '.vercel', 'auth.json'),
+    process.env.APPDATA && path.join(process.env.APPDATA, 'com.vercel.cli', 'auth.json'),
+    process.env.APPDATA && path.join(process.env.APPDATA, 'vercel', 'auth.json')
+  ].filter(Boolean)
+  for (const f of files) {
+    try {
+      const j = JSON.parse(fs.readFileSync(f, 'utf8'))
+      if (j.token) return j.token
+    } catch {}
+  }
+  return process.env.VERCEL_TOKEN || ''
+}
+
+async function vercelApi (route, method, body, token) {
+  const res = await fetch('https://api.vercel.com' + route, {
+    method,
+    headers: { Authorization: 'Bearer ' + token, 'content-type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body)
+  })
+  const j = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    const msg = j.error && (j.error.message || j.error.code) ? (j.error.message || j.error.code) : `HTTP ${res.status}`
+    throw new Error(msg)
+  }
+  return j
+}
+
 async function deployWebsite () {
   if (skipVercel) {
     console.log('\nSkipping Vercel deployment (--skip-vercel).')
@@ -290,6 +324,24 @@ async function deployWebsite () {
     return
   }
 
+  let project = null
+  try { project = JSON.parse(fs.readFileSync(path.join(websiteDir, '.vercel', 'project.json'), 'utf8')) } catch {}
+  const token = vercelToken()
+  let restoreRoot = null
+
+  if (project && project.projectId && token) {
+    try {
+      const p = await vercelApi(`/v9/projects/${project.projectId}`, 'GET', undefined, token)
+      if (p.rootDirectory) {
+        restoreRoot = p.rootDirectory
+        await vercelApi(`/v9/projects/${project.projectId}`, 'PATCH', { rootDirectory: null }, token)
+        console.log(`Cleared Vercel Root Directory "${restoreRoot}" for the CLI upload; it is restored after the deploy.`)
+      }
+    } catch (e) {
+      console.warn('Could not read Vercel project settings:', e.message)
+    }
+  }
+
   try {
     console.log('Deploying website directory via Vercel CLI...')
     execSync('npx --yes vercel --prod --yes', { cwd: websiteDir, stdio: 'inherit' })
@@ -297,6 +349,15 @@ async function deployWebsite () {
   } catch (err) {
     console.warn('\x1b[33mVercel deployment error:\x1b[0m', err.message)
     console.log('To login to Vercel on this computer, run: npx vercel login')
+  } finally {
+    if (restoreRoot) {
+      try {
+        await vercelApi(`/v9/projects/${project.projectId}`, 'PATCH', { rootDirectory: restoreRoot }, token)
+        console.log(`Restored Vercel Root Directory "${restoreRoot}".`)
+      } catch (e) {
+        console.warn(`Could not restore Vercel Root Directory "${restoreRoot}":`, e.message)
+      }
+    }
   }
 }
 

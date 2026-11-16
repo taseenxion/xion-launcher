@@ -256,7 +256,7 @@ public class XionMenuScreen extends BaseScreen {
 			if (x >= cxp && x < cxp + cardW && y >= cyp && y < cyp + CARD_H && cyp >= contentY - 4 && cyp < contentY + contentH) {
 				Toggle tg = list.get(i);
 				if (tg.premium() && !net.xion.client.feature.Premium.active()) {
-					// No in-game store: Xion+ modules need a key entered in Xion Launcher.
+					// No in-game store: Xion+ modules unlock when you sign in on Xion Launcher.
 					Compat.click();
 					return true;
 				}

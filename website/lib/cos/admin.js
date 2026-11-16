@@ -48,15 +48,30 @@ async function ensurePlayer (ign) {
 }
 
 async function grantOrder (o) {
+  const grants = o.grants || []
+  const plusOnly = grants.length > 0 && grants.every(g => g === A.PLUS_ID)
+  // Xion+ is an account entitlement, so there is no player key or equip step for it.
+  if (plusOnly) {
+    if (o.account && o.account.id) await A.grantItems(o.account.id, o.ign, grants).catch(() => {})
+    if (o.account && o.account.id) {
+      o.granted = true
+      o.messages.push({ from: 'admin', text: 'Payment approved! Xion+ is now active on your Xion account. Sign in with the same email in Xion Launcher to use it — no key needed.', at: Date.now() })
+    } else {
+      o.messages.push({ from: 'admin', text: 'This order has no Xion account attached, so Xion+ could not be added automatically. Ask the buyer to sign in on the shop and order again, or grant it manually.', at: Date.now() })
+    }
+    return
+  }
+
   const { p, key } = await ensurePlayer(o.ign)
-  for (const it of o.grants || []) if (!p.owned.includes(it)) p.owned.push(it)
+  const cosmeticGrants = grants.filter(g => { const x = C.byId(g); return x && S.SLOTS.includes(x.type) })
+  for (const it of cosmeticGrants) if (!p.owned.includes(it)) p.owned.push(it)
   // Wear the first new item of each slot that is still empty, so it shows up right away.
   p.equipped = p.equipped || {}
-  for (const it of o.grants || []) { const x = C.byId(it); if (x && x.type && !p.equipped[x.type]) p.equipped[x.type] = it }
+  for (const it of cosmeticGrants) { const x = C.byId(it); if (!p.equipped[x.type]) p.equipped[x.type] = it }
   await S.savePlayer(p)
   await S.updateWear(p)
   // The buyer's Xion account (shop sign-in) gets the items too, so the launcher shows them.
-  if (o.account && o.account.id) await A.grantItems(o.account.id, o.ign, o.grants || []).catch(() => {})
+  if (o.account && o.account.id) await A.grantItems(o.account.id, o.ign, grants).catch(() => {})
   o.granted = true
   if (key) {
     o.lockerKey = key
@@ -67,17 +82,19 @@ async function grantOrder (o) {
 }
 
 async function revokeOrder (o) {
+  // Only take back what no other granted order also gave.
+  const others = (await Promise.all((await S.listAll('orders/')).map(x => S.readJSON(x.pathname))))
+    .filter(x => x && x.id !== o.id && x.granted && x.ign && x.ign.toLowerCase() === String(o.ign).toLowerCase()).flatMap(x => x.grants || [])
   const p = await S.getPlayer(o.ign)
   if (p) {
-    // Only take back what no other granted order also gave.
-    const others = (await Promise.all((await S.listAll('orders/')).map(x => S.readJSON(x.pathname))))
-      .filter(x => x && x.id !== o.id && x.granted && x.ign.toLowerCase() === p.name).flatMap(x => x.grants || [])
     const keep = new Set([...others, ...(p.gifts || [])])
     p.owned = (p.owned || []).filter(i => keep.has(i) || !(o.grants || []).includes(i))
     for (const s of S.SLOTS) if (p.equipped && p.equipped[s] && !p.owned.includes(p.equipped[s])) delete p.equipped[s]
     await S.savePlayer(p)
     await S.updateWear(p)
   }
+  // And from the buyer's Xion account, so the launcher and game lock again too.
+  if (o.account && o.account.id) await A.revokeItems(o.account.id, o.grants || [], [...others, ...((p && p.gifts) || [])]).catch(() => {})
   o.granted = false
 }
 
