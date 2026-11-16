@@ -5,6 +5,7 @@
 //   status  {id, token}        the buyer's order: status, license key, messages
 //   message {id, token, text}  buyer writes to the seller
 const crypto = require('crypto')
+const A = require('../lib/acc')
 const S = require('./_store')
 
 const DEVICE = /^[0-9a-f]{16}$/
@@ -101,14 +102,17 @@ module.exports = async (req, res) => {
       if (!(await rateLimit(req))) return S.send(res, 429, { error: 'Too many orders from your network. Try again in an hour.' })
 
       const oid = S.id(8), token = S.id(16)
+      const acct = await A.fromToken(b.token)
       if (shot) await S.writeBytes(`shop/shots/${oid}`, shot.data, shot.type)
       const order = {
         id: oid, token, created: Date.now(), status: 'pending', name, ign, email, device,
+        account: acct ? { id: acct.id, email: acct.email } : null,
         currency, amount, method, payer, trx, code: c ? c.code : '', shot: !!shot, key: '',
         messages: [{ from: 'system', text: amount > 0 ? 'Order received. We will check your payment and send your license key here.' : 'Order received with a free code. Your license key will be sent here soon.', at: Date.now() }],
         unread: true
       }
       await S.writeJSON(`shop/orders/${oid}.json`, order)
+      await A.addOrder(acct, { kind: 'xion', id: oid, token, amount, currency, title: 'Xion+' }).catch(() => {})
       if (c) {
         const codes = await S.readJSON('shop/codes.json', [])
         const x = codes.find(k => k.code === c.code)

@@ -8,6 +8,7 @@
 //   codes / saveCode {code,type,value,maxUses,active} / deleteCode {code}
 //   settings / saveSettings {bkash,nagad,upi,cardLink,note}
 const C = require('./catalog')
+const A = require('../acc')
 const S = require('./_cos')
 
 const STATUSES = ['pending', 'approved', 'rejected']
@@ -54,6 +55,8 @@ async function grantOrder (o) {
   for (const it of o.grants || []) { const x = C.byId(it); if (x && x.type && !p.equipped[x.type]) p.equipped[x.type] = it }
   await S.savePlayer(p)
   await S.updateWear(p)
+  // The buyer's Xion account (shop sign-in) gets the items too, so the launcher shows them.
+  if (o.account && o.account.id) await A.grantItems(o.account.id, o.ign, o.grants || []).catch(() => {})
   o.granted = true
   if (key) {
     o.lockerKey = key

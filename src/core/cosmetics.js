@@ -69,12 +69,13 @@ function firstFile () {
   return c ? (c.frames > 1 ? `${c.id}_0.png` : `${c.id}.png`) : 'capes.json'
 }
 
-/** Fields for xion-launcher.json. A Xion+ cape is dropped without Xion+ (the game checks too). */
+/** Fields for xion-launcher.json. A Xion+ cape needs Xion+, a license key or a purchase on the account. */
 function handoff (root, settings, premium) {
   const c = byId(settings.cape, settings)
+  const mine = Array.isArray(settings.ownedCapes) ? settings.ownedCapes : []
   return {
     capesDir: install(root, settings),
-    cape: c && (c.tier === 'free' || premium) ? c.id : '',
+    cape: c && (c.tier === 'free' || premium || mine.includes(c.id)) ? c.id : '',
     capeRev: settings.capeRev || 0
   }
 }

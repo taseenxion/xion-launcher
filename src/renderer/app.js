@@ -1121,13 +1121,13 @@ $('#updatePill').addEventListener('click', async () => {
 })
 
 // ---------- Capes (Skin page) ----------
-const capes = { list: [], selected: '', premium: false, cat: 'All', timer: null }
+const capes = { list: [], selected: '', premium: false, cat: 'All', timer: null, owned: [] }
 const capeFile = (c, f = 0) => c.src || '../assets/capes/' + (c.frames > 1 ? `${c.id}_${f}` : c.id) + '.png'
 
 async function loadCapes () {
   try {
     const r = await xion.call('cosmetics:list')
-    Object.assign(capes, { list: r.capes, selected: r.selected, premium: r.premium })
+    Object.assign(capes, { list: r.capes, selected: r.selected, premium: r.premium, owned: r.owned || [] })
   } catch { return }
   player.capesReady = true
   renderCapes()
@@ -1139,7 +1139,7 @@ function renderCapes () {
   $('#capeCats').innerHTML = cats.map(c => `<button data-cat="${c}" class="${c === capes.cat ? 'on' : ''}">${c}</button>`).join('')
   const shown = capes.list.filter(c => capes.cat === 'All' || (capes.cat === 'Free' ? c.tier === 'free' : c.cat === capes.cat))
   $('#capeGrid').innerHTML = `<button class="cape none ${capes.selected ? '' : 'on'}" data-cape="" title="No cape">none</button>` + shown.map(c => {
-    const locked = c.tier === 'pro' && !capes.premium
+    const locked = c.tier === 'pro' && !capes.premium && !capes.owned.includes(c.id)
     return `<button class="cape ${c.tier} ${locked ? 'locked' : ''} ${c.id === capes.selected ? 'on' : ''}" data-cape="${c.id}" title="${esc(c.name)}${c.tier === 'pro' ? ' · Xion+' : ''}" style="background-image:url('${capeFile(c)}')">${c.frames > 1 ? '<i class="anim"></i>' : ''}</button>`
   }).join('')
   const cur = capes.list.find(c => c.id === capes.selected)
@@ -1170,7 +1170,7 @@ $('#capeGrid').addEventListener('click', async e => {
   const b = e.target.closest('[data-cape]')
   if (!b) return
   const c = capes.list.find(x => x.id === b.dataset.cape)
-  if (c && c.tier === 'pro' && !capes.premium) {
+  if (c && c.tier === 'pro' && !capes.premium && !capes.owned.includes(c.id)) {
     toast(`${c.name} is a Xion+ cape. Add a license key to unlock all ${capes.list.length} capes.`)
     go('settings')
     setTimeout(() => $('#premiumCard').scrollIntoView({ behavior: 'smooth', block: 'center' }), 250)
@@ -1491,6 +1491,107 @@ $('#premiumCard').addEventListener('click', async e => {
   }
 })
 
+// ---------- Xion account (the same login as the shop) ----------
+const accState = { data: { signedIn: false }, mode: 'in' }
+
+async function loadAccount (quiet) {
+  try { accState.data = await xion.call('xion:status') } catch (e) { if (!quiet) toast(e.message, 'err') }
+  renderAccount()
+}
+
+function accCapeName (id) {
+  const c = capes.list.find(x => x.id === id)
+  return c ? c.name : ''
+}
+
+function renderAccount () {
+  const box = $('#accBody')
+  if (!box) return
+  const a = accState.data || { signedIn: false }
+  if (!a.signedIn) {
+    const up = accState.mode === 'up'
+    box.innerHTML = `<div class="acc-tabs"><button data-amode="in" class="${up ? '' : 'on'}">Sign in</button><button data-amode="up" class="${up ? 'on' : ''}">Create account</button></div>
+      <div class="acc-form">
+        <label>Email<input id="accEmail" type="email" placeholder="you@gmail.com" autocomplete="email" spellcheck="false"></label>
+        <label>Password<input id="accPass" type="password" placeholder="At least 6 characters" autocomplete="${up ? 'new-password' : 'current-password'}"></label>
+        ${up ? '<label>Minecraft name<input id="accIgn" placeholder="Steve" spellcheck="false"></label><label>Display name (optional)<input id="accName" placeholder="Your name"></label>' : ''}
+      </div>
+      <div class="premium-actions">
+        <button class="btn primary" id="accGo">${up ? 'Create my account' : 'Sign in'}</button>
+        <a class="btn ghost" href="https://xion-shop.vercel.app" target="_blank" rel="noopener">Open the shop</a>
+      </div>
+      <p class="muted small" style="margin-top:10px">One account per Minecraft name. Capes and Xion+ bought on xion-shop.vercel.app with this email unlock here and show on your name in game.</p>`
+    return
+  }
+  const own = a.owned || []
+  const mine = own.map(id => capes.list.find(c => c.id === id)).filter(Boolean)
+  const worn = a.equipped && a.equipped.cape
+  box.innerHTML = `<div class="acc-who">
+      <div><b>${esc(a.name || a.ign)}</b><span>${esc(a.email)} · linked to <b>${esc(a.ign)}</b></span></div>
+      <button class="btn ghost sm" id="accOut">Sign out</button>
+    </div>
+    <div class="acc-stats"><span><b>${own.length}</b> cosmetic${own.length === 1 ? '' : 's'} owned</span><span>Wearing <b>${esc(accCapeName(worn) || 'nothing')}</b></span><button class="btn ghost sm" id="accSync">Sync now</button></div>
+    ${mine.length
+      ? `<div class="acc-capes">${mine.slice(0, 18).map(c => `<button class="acc-cape ${worn === c.id ? 'on' : ''}" data-acape="${c.id}" title="${esc(c.name)}" style="background-image:url('${capeFile(c)}')"></button>`).join('')}</div>
+         <p class="muted small">Click a cape you own to wear it. It applies on your next launch, and other players already see it in game.</p>`
+      : '<p class="muted small">Nothing bought on this account yet. Purchases appear here as soon as the payment is approved.</p>'}`
+}
+
+async function accGo () {
+  const email = ($('#accEmail') || {}).value || ''
+  const pass = ($('#accPass') || {}).value || ''
+  if (!email.trim() || !pass) return toast('Enter your email and password.', 'err')
+  const btn = $('#accGo')
+  if (btn) { btn.disabled = true; btn.classList.add('busy') }
+  try {
+    const up = accState.mode === 'up'
+    accState.data = up
+      ? await xion.call('xion:signup', email.trim(), pass, ($('#accIgn') || {}).value || '', ($('#accName') || {}).value || '')
+      : await xion.call('xion:login', email.trim(), pass)
+    renderAccount()
+    await loadCapes()
+    toast(up ? 'Account created — you are signed in.' : `Signed in as ${accState.data.ign}.`, 'ok')
+  } catch (err) {
+    toast(err.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, ''), 'err')
+  } finally { if (btn) { btn.disabled = false; btn.classList.remove('busy') } }
+}
+
+async function accRefresh () {
+  try {
+    accState.data = await xion.call('xion:refresh')
+    renderAccount()
+    await loadCapes()
+    toast('Account synced.', 'ok')
+  } catch (err) { toast(err.message, 'err') }
+}
+
+async function accWearCape (id) {
+  try {
+    accState.data = await xion.call('xion:equip', 'cape', id)
+    renderAccount()
+    await loadCapes()
+    toast('Cape equipped. It applies on your next launch.', 'ok')
+  } catch (err) {
+    toast(err.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, ''), 'err')
+  }
+}
+
+$('#accBody')?.addEventListener('click', async e => {
+  const m = e.target.closest('[data-amode]')
+  if (m) { accState.mode = m.dataset.amode; return renderAccount() }
+  if (e.target.closest('#accGo')) return accGo()
+  if (e.target.closest('#accSync')) return accRefresh()
+  if (e.target.closest('#accOut')) {
+    accState.data = await xion.call('xion:logout')
+    renderAccount()
+    await loadCapes()
+    return toast('Signed out of your Xion account.')
+  }
+  const chip = e.target.closest('[data-acape]')
+  if (chip) return accWearCape(chip.dataset.acape)
+})
+$('#accBody')?.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); accGo() } })
+
 async function boot () {
   const [st, info, catalog] = await Promise.all([xion.call('state:get'), xion.call('app:info'), xion.call('mods:catalog')])
   Object.assign(state, st)
@@ -1502,6 +1603,7 @@ async function boot () {
   renderSettings()
   renderFeatured()
   loadThemes().catch(e => console.error(e))
+  loadAccount(true).catch(() => {})
   loadNews()
   setTimeout(() => $('#splash').classList.add('gone'), 700)
   // First start: the welcome intro (intro.js) takes over.

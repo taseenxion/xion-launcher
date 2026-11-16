@@ -16,6 +16,7 @@ const skins = require('./src/core/skins')
 const modrinth = require('./src/core/modrinth')
 const themes = require('./src/core/themes')
 const license = require('./src/core/license')
+const xionAcc = require('./src/core/xion')
 const cosmetics = require('./src/core/cosmetics')
 const updater = require('./src/core/updater')
 const pvp = require('./src/core/pvp')
@@ -76,6 +77,38 @@ app.whenReady().then(() => {
   network.useChromiumFetch()
   store.load()
 
+  // ── Xion account (the same email/password as the shop) ──
+  // The token stays in the main process; the window only ever sees the profile.
+  const xionPublic = () => {
+    const x = store.get().settings.xion || {}
+    return {
+      signedIn: !!x.token, email: x.email || '', name: x.name || '', ign: x.ign || '',
+      owned: x.owned || [], equipped: x.equipped || {}, at: x.at || 0
+    }
+  }
+  const ownedCapes = owned => (owned || []).filter(id => cosmetics.catalog().some(c => c.id === id))
+  const xionSave = (token, account) => {
+    const s = store.get().settings
+    s.xion = {
+      token, email: account.email, name: account.name, ign: account.ign,
+      owned: account.owned || [], equipped: account.equipped || {}, at: Date.now()
+    }
+    s.ownedCapes = ownedCapes(account.owned)
+    // Wear what the account has equipped, so the launcher and the game agree with the shop.
+    const cape = account.equipped && account.equipped.cape
+    if (cape && s.ownedCapes.includes(cape) && s.cape !== cape) {
+      s.cape = cape
+      s.capeRev = (s.capeRev || 0) + 1
+    }
+    store.save()
+    return xionPublic()
+  }
+  const xionSync = async () => {
+    const x = store.get().settings.xion
+    if (!x || !x.token) return xionPublic()
+    return xionSave(x.token, await xionAcc.me(x.token))
+  }
+
   handle('win:min', () => win.minimize())
   handle('win:max', () => (win.isMaximized() ? win.unmaximize() : win.maximize()))
   handle('win:close', () => win.close())
@@ -88,7 +121,7 @@ app.whenReady().then(() => {
   }))
   handle('state:get', () => {
     const d = store.get()
-    return { profiles: d.profiles, selectedProfile: d.selectedProfile, settings: d.settings, ...accounts.list() }
+    return { profiles: d.profiles, selectedProfile: d.selectedProfile, settings: { ...d.settings, xion: xionPublic() }, ...accounts.list() }
   })
 
   handle('accounts:offline', name => accounts.addOffline(name))
@@ -197,7 +230,7 @@ app.whenReady().then(() => {
     const s = store.get().settings
     const own = cosmetics.custom(s)
     const list = own ? [{ ...own, src: cosmetics.customDataUrl(s) }, ...cosmetics.catalog()] : cosmetics.catalog()
-    return { capes: list, selected: s.cape || '', premium: license.verify(s.licenseKey).valid }
+    return { capes: list, selected: s.cape || '', premium: license.verify(s.licenseKey).valid, owned: s.ownedCapes || [] }
   })
   // Xion+ only: the renderer sends the cape already drawn onto a 256x128 canvas.
   handle('cosmetics:upload', dataUrl => {
@@ -224,7 +257,8 @@ app.whenReady().then(() => {
     const s = store.get().settings
     const c = id ? cosmetics.byId(id, s) : null
     if (id && !c) throw new Error('Unknown cape')
-    if (c && c.tier === 'pro' && !license.verify(s.licenseKey).valid) throw new Error('PREMIUM')
+    const mine = Array.isArray(s.ownedCapes) ? s.ownedCapes : []
+    if (c && c.tier === 'pro' && !license.verify(s.licenseKey).valid && !mine.includes(c.id)) throw new Error('PREMIUM')
     s.cape = c ? c.id : ''
     s.capeRev = (s.capeRev || 0) + 1
     store.save()
@@ -266,6 +300,32 @@ app.whenReady().then(() => {
     store.save()
     return { premium: false }
   })
+
+  // Xion account: one email/password for the shop and the launcher.
+  handle('xion:status', () => xionPublic())
+  handle('xion:login', async (email, pass) => {
+    const r = await xionAcc.login(String(email || '').trim(), String(pass || ''))
+    return xionSave(r.token, r.account)
+  })
+  handle('xion:signup', async (email, pass, ign, name) => {
+    const r = await xionAcc.signup({ email: String(email || '').trim(), pass: String(pass || ''), ign: String(ign || '').trim(), name: String(name || '').trim() })
+    return xionSave(r.token, r.account)
+  })
+  handle('xion:refresh', () => xionSync())
+  handle('xion:equip', async (slot, item) => {
+    const x = store.get().settings.xion
+    if (!x || !x.token) throw new Error('Sign in to your Xion account first.')
+    return xionSave(x.token, await xionAcc.equip(x.token, String(slot || ''), String(item || '')))
+  })
+  handle('xion:logout', () => {
+    const s = store.get().settings
+    delete s.xion
+    s.ownedCapes = []
+    store.save()
+    return xionPublic()
+  })
+  // Pull latest purchases in the background once the window is up; failures stay quiet (offline).
+  setTimeout(() => { xionSync().catch(() => {}) }, 4000)
 
   handle('settings:pickJava', async () => {
     const r = await dialog.showOpenDialog(win, { title: 'Select java executable', filters: [{ name: 'Java', extensions: process.platform === 'win32' ? ['exe'] : ['*'] }], properties: ['openFile'] })

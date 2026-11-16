@@ -1,0 +1,86 @@
+[
+  {
+    "id": "an_sunrise",
+    "name": "Sunrise Torii",
+    "cat": "Anime",
+    "tier": "free",
+    "frames": 8
+  },
+  {
+    "id": "an_sakura",
+    "name": "Sakura Dusk",
+    "cat": "Anime",
+    "tier": "pro",
+    "frames": 8
+  },
+  {
+    "id": "an_leafall",
+    "name": "Autumn Fall",
+    "cat": "Anime",
+    "tier": "pro",
+    "frames": 8
+  },
+  {
+    "id": "an_neonrain",
+    "name": "Neon Rain",
+    "cat": "Anime",
+    "tier": "pro",
+    "frames": 8
+  },
+  {
+    "id": "an_moonwolf",
+    "name": "Moonlit Wolf",
+    "cat": "Anime",
+    "tier": "pro",
+    "frames": 8
+  },
+  {
+    "id": "an_bamboo",
+    "name": "Moonlit Bamboo",
+    "cat": "Anime",
+    "tier": "free",
+    "frames": 8
+  },
+  {
+    "id": "an_starfall",
+    "name": "Starfall",
+    "cat": "Anime",
+    "tier": "pro",
+    "frames": 8
+  },
+  {
+    "id": "an_ember",
+    "name": "Ember Dusk",
+    "cat": "Anime",
+    "tier": "pro",
+    "frames": 8
+  },
+  {
+    "id": "an_tide",
+    "name": "Moon Tide",
+    "cat": "Anime",
+    "tier": "pro",
+    "frames": 8
+  },
+  {
+    "id": "an_lantern",
+    "name": "Snow Lantern",
+    "cat": "Anime",
+    "tier": "free",
+    "frames": 8
+  },
+  {
+    "id": "an_eyes",
+    "name": "Shadow Eyes",
+    "cat": "Anime",
+    "tier": "pro",
+    "frames": 8
+  },
+  {
+    "id": "an_garden",
+    "name": "Night Garden",
+    "cat": "Anime",
+    "tier": "pro",
+    "frames": 8
+  }
+]

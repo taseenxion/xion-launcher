@@ -5,6 +5,7 @@
 //   status  {id, token}             the buyer's order: status, messages, locker key once approved
 //   message {id, token, text}       buyer writes to the seller
 const C = require('./catalog')
+const A = require('../acc')
 const S = require('./_cos')
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -97,14 +98,20 @@ module.exports = async (req, res) => {
       if (!(await S.limit(req, 'order', 6, 3600 * 1000))) return S.send(res, 429, { error: 'Too many orders from your network. Try again in an hour.' })
 
       const oid = S.id(8), token = S.id(16)
+      const acct = await A.fromToken(b.token)
       if (shot) await S.writeBytes(`shots/${oid}`, shot.data, shot.type)
       const order = {
         id: oid, token, created: Date.now(), status: 'pending', ign, email, currency, amount: q.total, subtotal: q.subtotal,
+        account: acct ? { id: acct.id, email: acct.email } : null,
         lines: q.lines, grants: q.grants, method, payer, trx, code: c ? c.code : '', shot: !!shot, granted: false, lockerKey: '',
         messages: [{ from: 'system', text: q.total > 0 ? 'Order received! We are checking your payment. Your cosmetics unlock here as soon as it is approved.' : 'Order received with a free code. Your cosmetics unlock as soon as it is approved.', at: Date.now() }],
         unread: true
       }
       await S.writeJSON(`orders/${oid}.json`, order)
+      await A.addOrder(acct, {
+        kind: 'cos', id: oid, token, amount: q.total, currency,
+        title: q.lines.map(l => l.name).slice(0, 2).join(', ') + (q.lines.length > 2 ? ` +${q.lines.length - 2}` : '')
+      }).catch(() => {})
       if (c) {
         const codes = await S.readJSON('codes.json', [])
         const x = codes.find(k => k.code === c.code)

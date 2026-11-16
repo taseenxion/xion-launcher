@@ -383,6 +383,7 @@
     btn.classList.add('busy')
     const details = {
       ...st.details,
+      token: signedIn() ? ACC.token : '',
       currency: st.currency,
       code: st.code,
       method: st.method,
@@ -570,6 +571,185 @@
     })
   }
 
+  // ── account: Gmail / email sign-in, shared with the launcher ──
+  const K_ACC = 'xion-acc'
+  let ACC = ls(K_ACC, null)
+  const signedIn = () => !!(ACC && ACC.token)
+
+  function paintAccBtn () {
+    const b = $('#accBtn')
+    if (!b) return
+    b.innerHTML = `<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c0-3.6 3.4-6 7.5-6s7.5 2.4 7.5 6"/></svg><span>${signedIn() ? esc(ACC.ign) : 'Sign in'}</span>`
+    b.classList.toggle('has', signedIn())
+  }
+
+  async function refreshAccount (quiet) {
+    if (!signedIn()) return null
+    try {
+      const r = await call('/api/account', { action: 'me', token: ACC.token })
+      ACC = { ...ACC, ...r.account, token: ACC.token }
+      setLs(K_ACC, ACC)
+      if (ACC.orders?.length) {
+        const seen = new Set()
+        const merged = [...ACC.orders, ...orders()].filter(o => { const k = o.kind + o.id; return seen.has(k) ? false : (seen.add(k), true) })
+        setLs(K_ORD, merged.slice(0, 30))
+        paintOrdersBtn()
+      }
+      if (ACC.ign) setLs('xion-ign', ACC.ign)
+      if (ACC.email) setLs('xion-email', ACC.email)
+      paintAccBtn()
+      return ACC
+    } catch (e) {
+      if (/sign in again/i.test(e.message)) { ACC = null; setLs(K_ACC, null); paintAccBtn(); if (!quiet) toast('Signed out — please sign in again.') }
+      else if (!quiet) toast(e.message)
+      return null
+    }
+  }
+
+  const EQUIP_SLOTS = [['cape', 'Cape'], ['hat', 'Hat'], ['wings', 'Wings'], ['aura', 'Aura']]
+
+  function showAccount () {
+    const d = drawer('accDrawer', 'Your Xion account')
+    openDrawer(d)
+    renderAccount(d)
+  }
+
+  function renderAccount (d) {
+    const body = $('.dr-body', d)
+    if (!signedIn()) {
+      body.innerHTML = `<p class="sh-lead">Sign in with your email (a Gmail address works the same) so your purchases, cosmetics and orders follow you into the launcher and into game.</p>
+        <div class="acc-tabs"><button class="on" data-mode="in">Sign in</button><button data-mode="up">Create account</button></div>
+        <form class="acc-form" id="accForm" autocomplete="on">
+          <label>Email<input name="email" type="email" maxlength="120" placeholder="you@gmail.com" autocomplete="email" required></label>
+          <label>Password<input name="pass" type="password" minlength="6" placeholder="At least 6 characters" autocomplete="current-password" required></label>
+          <div class="acc-extra" hidden>
+            <label>Minecraft name<input name="ign" maxlength="16" placeholder="Steve" spellcheck="false"></label>
+            <label>Display name (optional)<input name="name" maxlength="40" placeholder="Your name"></label>
+          </div>
+          <button class="btn wide" type="submit" id="accGo">Sign in</button>
+          <p class="err" id="accErr"></p>
+          <p class="fine">Cosmetics you buy with this email unlock in the launcher when you sign in there too. One account per Minecraft name.</p>
+        </form>`
+      let mode = 'in'
+      const tabs = $('.acc-tabs', body)
+      tabs.addEventListener('click', e => {
+        const t = e.target.closest('[data-mode]'); if (!t) return
+        mode = t.dataset.mode
+        $$('button', tabs).forEach(b => b.classList.toggle('on', b === t))
+        $('.acc-extra', body).hidden = mode !== 'up'
+        $('.acc-form input[name=pass]', body).autocomplete = mode === 'up' ? 'new-password' : 'current-password'
+        $('#accGo', body).textContent = mode === 'up' ? 'Create my account' : 'Sign in'
+        $('#accErr', body).textContent = ''
+      })
+      $('#accForm').addEventListener('submit', async e => {
+        e.preventDefault()
+        const f = e.target
+        const btn = $('#accGo', body), errEl = $('#accErr', body)
+        errEl.textContent = ''
+        btn.disabled = true
+        try {
+          const body2 = mode === 'up'
+            ? { action: 'signup', email: f.email.value, pass: f.pass.value, ign: f.ign.value, name: f.name.value }
+            : { action: 'login', email: f.email.value, pass: f.pass.value }
+          const r = await call('/api/account', body2)
+          ACC = { ...r.account, token: r.token }
+          setLs(K_ACC, ACC)
+          paintAccBtn()
+          await refreshAccount(true)
+          if (mode === 'up') toast('Account created — you are signed in')
+          else toast('Signed in')
+          renderAccount(d)
+          syncVault()
+        } catch (x) { errEl.textContent = x.message } finally { btn.disabled = false }
+      })
+      return
+    }
+
+    const own = ACC.owned || []
+    body.innerHTML = `<div class="acc-who"><div><b>${esc(ACC.name || ACC.ign)}</b><small>${esc(ACC.email)} · linked to <b>${esc(ACC.ign)}</b></small></div><button class="link" id="accOut">Sign out</button></div>
+      <div class="acc-stats"><span><b>${own.length}</b> cosmetic${own.length === 1 ? '' : 's'} owned</span><button class="btn ghost small" id="accOrders">My orders</button><button class="btn ghost small" id="accVault">My locker</button></div>
+      ${EQUIP_SLOTS.map(([slot, label]) => {
+        const items = own.map(id => cosItem(id)).filter(i => i && i.type === slot && !i.items)
+        const worn = (ACC.equipped || {})[slot]
+        return `<div class="slot"><h4>${label}</h4><div class="slot-items">
+          <button class="slot-item ${!worn ? 'on' : ''}" data-aslot="${slot}" data-aitem="">None</button>
+          ${items.map(i => `<button class="slot-item ${worn === i.id ? 'on' : ''}" data-aslot="${slot}" data-aitem="${esc(i.id)}">${esc(i.name)}</button>`).join('')}
+          ${items.length ? '' : '<span class="slot-none">Nothing owned here yet.</span>'}</div></div>`
+      }).join('')}
+      <p class="fine">Equipped items show on <b>${esc(ACC.ign)}</b> for every Xion Client player, and in the launcher on the same account.</p>`
+
+    $('#accOut', body).addEventListener('click', () => {
+      ACC = null; setLs(K_ACC, null); paintAccBtn(); toast('Signed out'); renderAccount(d); syncVault()
+    })
+    $('#accOrders', body).addEventListener('click', () => { closeDrawer(d); showOrders() })
+    $('#accVault', body).addEventListener('click', () => { closeDrawer(d); $('#vault').scrollIntoView({ behavior: 'smooth', block: 'center' }) })
+    body.addEventListener('click', async e => {
+      const b = e.target.closest('[data-aslot]')
+      if (!b) return
+      b.disabled = true
+      try {
+        const r = await call('/api/account', { action: 'equip', token: ACC.token, slot: b.dataset.aslot, item: b.dataset.aitem })
+        ACC = { ...ACC, ...r.account, token: ACC.token }
+        setLs(K_ACC, ACC)
+        renderAccount(d)
+        toast(b.dataset.aitem ? 'Equipped — it shows in game now' : 'Taken off')
+        if ($('#vaultMain') && !$('#vaultMain').hidden) drawAccVault()
+      } catch (x) { toast(x.message); b.disabled = false }
+    })
+  }
+
+  // The vault section doubles as the account's locker when signed in.
+  function drawAccVault () {
+    const main = $('#vaultMain'), form = $('#vaultForm')
+    if (!main || !signedIn()) return
+    form.hidden = true
+    main.hidden = false
+    const own = ACC.owned || []
+    main.innerHTML = `<div class="vault-who"><b>${esc(ACC.ign)}</b><span>signed in as ${esc(ACC.email)} · ${own.length} item${own.length === 1 ? '' : 's'}</span><button class="link" id="vaultAccOut">Sign out</button></div>
+      ${EQUIP_SLOTS.map(([slot, label]) => {
+        const items = own.map(id => cosItem(id)).filter(i => i && i.type === slot && !i.items)
+        const worn = (ACC.equipped || {})[slot]
+        return `<div class="slot"><h4>${label}</h4><div class="slot-items">
+          <button class="slot-item ${!worn ? 'on' : ''}" data-vslot="${slot}" data-vitem="">None</button>
+          ${items.map(i => `<button class="slot-item ${worn === i.id ? 'on' : ''}" data-vslot="${slot}" data-vitem="${esc(i.id)}">${esc(i.name)}</button>`).join('')}
+          ${items.length ? '' : '<span class="slot-none">Nothing owned in this slot yet.</span>'}</div></div>`
+      }).join('')}
+      <p class="fine">This is what other players see on your back, on your elytra and in the tab list. Signed in on the launcher too? Your cape is applied there automatically.</p>`
+    $('#vaultAccOut').addEventListener('click', () => {
+      ACC = null; setLs(K_ACC, null); paintAccBtn()
+      main.hidden = true; $('#vaultForm').hidden = false
+      toast('Signed out')
+    })
+    main.addEventListener('click', async e => {
+      const b = e.target.closest('[data-vslot]')
+      if (!b) return
+      b.disabled = true
+      try {
+        const r = await call('/api/account', { action: 'equip', token: ACC.token, slot: b.dataset.vslot, item: b.dataset.vitem })
+        ACC = { ...ACC, ...r.account, token: ACC.token }
+        setLs(K_ACC, ACC)
+        drawAccVault()
+        toast(b.dataset.vitem ? 'Equipped — it shows in game now' : 'Taken off')
+      } catch (x) { toast(x.message); b.disabled = false }
+    })
+  }
+
+  // Signing in swaps the key form for the account's own locker, and back again.
+  function syncVault () {
+    if (!$('#vaultMain') || !$('#vaultForm')) return
+    if (signedIn()) return drawAccVault()
+    $('#vaultMain').hidden = true
+    $('#vaultForm').hidden = false
+  }
+
+  async function initAccount () {
+    paintAccBtn()
+    $('#accBtn')?.addEventListener('click', () => showAccount())
+    if (!signedIn()) return
+    await refreshAccount(true)
+    if (signedIn()) syncVault()
+  }
+
   // ── wire up ──
   async function init () {
     const [x, c] = await Promise.allSettled([call('/api/shop'), call('/api/cosmetics?r=shop')])
@@ -581,6 +761,7 @@
     renderCart()
     paintOrdersBtn()
     bindLocker()
+    await initAccount()
     const plusBtn = $('#buyPlus')
     if (plusBtn) plusBtn.addEventListener('click', e => { e.preventDefault(); sheetOpen('xion') })
     $('#cartBtn')?.addEventListener('click', () => { const d = drawer('cartDrawer', 'Your cart'); renderCart(); openDrawer(d) })
