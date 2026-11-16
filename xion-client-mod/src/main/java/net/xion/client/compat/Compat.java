@@ -55,6 +55,31 @@ public final class Compat {
 		return raw;
 	}
 
+	/** Normalize the keys our editors use; 26.3 reports SDL scancodes rather than GLFW key values. */
+	public static int key(int raw) {
+		return switch (raw) {
+			case com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE -> 256;
+			case com.mojang.blaze3d.platform.InputConstants.KEY_RETURN -> 257;
+			case com.mojang.blaze3d.platform.InputConstants.KEY_NUMPADENTER -> 335;
+			case com.mojang.blaze3d.platform.InputConstants.KEY_BACKSPACE -> 259;
+			case com.mojang.blaze3d.platform.InputConstants.KEY_DELETE -> 261;
+			case com.mojang.blaze3d.platform.InputConstants.KEY_LEFT -> 263;
+			case com.mojang.blaze3d.platform.InputConstants.KEY_RIGHT -> 262;
+			case com.mojang.blaze3d.platform.InputConstants.KEY_UP -> 265;
+			case com.mojang.blaze3d.platform.InputConstants.KEY_DOWN -> 264;
+			case com.mojang.blaze3d.platform.InputConstants.KEY_HOME -> 268;
+			case com.mojang.blaze3d.platform.InputConstants.KEY_END -> 269;
+			case com.mojang.blaze3d.platform.InputConstants.KEY_PAGEUP -> 266;
+			case com.mojang.blaze3d.platform.InputConstants.KEY_PAGEDOWN -> 267;
+			case com.mojang.blaze3d.platform.InputConstants.KEY_A -> 65;
+			case com.mojang.blaze3d.platform.InputConstants.KEY_C -> 67;
+			case com.mojang.blaze3d.platform.InputConstants.KEY_F -> 70;
+			case com.mojang.blaze3d.platform.InputConstants.KEY_V -> 86;
+			case com.mojang.blaze3d.platform.InputConstants.KEY_X -> 88;
+			default -> raw;
+		};
+	}
+
 	public static void click() {
 		Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
 	}

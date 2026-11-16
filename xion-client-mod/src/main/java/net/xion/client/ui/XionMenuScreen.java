@@ -32,7 +32,7 @@ public class XionMenuScreen extends BaseScreen {
 	private static final Tab[] TABS_XP = { Tab.MODS, Tab.HUD, Tab.FEATURES, Tab.FPS, Tab.CAPES, Tab.CROSSHAIR, Tab.AI, Tab.PROFILE };
 
 	private static final int GAP = 6;
-	private static final int CARD_H = 34;
+	private static final int CARD_H = 44;
 	private static final int HEADER_H = 48;
 
 	private record Toggle(String name, String desc, BooleanSupplier get, Consumer<Boolean> set, HudModule module, boolean premium) {
@@ -110,14 +110,15 @@ public class XionMenuScreen extends BaseScreen {
 	@Override
 	protected void layout() {
 		boolean ai = tab == Tab.AI;
-		int maxW = ai ? 640 : 566;
-		int maxH = ai ? 404 : 336;
+		boolean mods = tab == Tab.MODS;
+		int maxW = mods ? 740 : ai ? 640 : 620;
+		int maxH = mods ? 420 : ai ? 404 : 350;
 		pw = Math.min(width - 16, maxW);
 		ph = Math.min(height - 16, maxH);
 		px = (width - pw) / 2;
 		py = (height - ph) / 2;
 
-		sideW = Math.max(84, Math.min(126, pw / 4));
+		sideW = Math.max(84, Math.min(mods ? 108 : 116, pw / 4));
 		sideX = px + 8;
 		sideY = py + HEADER_H + 4;
 		sideH = ph - HEADER_H - 12;
@@ -125,7 +126,7 @@ public class XionMenuScreen extends BaseScreen {
 		contentY = py + HEADER_H + 8;
 		contentW = pw - sideW - 24;
 		contentH = ph - HEADER_H - 8 - (tab == Tab.HUD ? 20 : 0);
-		cols = contentW >= 330 ? 3 : 2;
+		cols = contentW >= 560 ? 3 : contentW >= 330 ? 2 : 1;
 		cardW = (contentW - (cols - 1) * GAP) / cols;
 
 		Tab[] tabs = tabs();
@@ -191,7 +192,7 @@ public class XionMenuScreen extends BaseScreen {
 		g.translate(0, oy);
 		drawShell(g, mx, my - oy, a);
 
-		if (rowsHeight() > contentH) {
+		if (tab != Tab.MODS && rowsHeight() > contentH) {
 			int trackX = contentX + contentW + 3;
 			int barH = Math.max(12, contentH * contentH / rowsHeight());
 			int barY = contentY + (int) ((contentH - barH) * (scroll / Math.max(1, rowsHeight() - contentH)));
@@ -206,7 +207,6 @@ public class XionMenuScreen extends BaseScreen {
 		switch (tab) {
 			case MODS -> {
 				modsPanel.draw(g, contentX, contentY, contentW, contentH, scroll, mx, my - oy, a * ta);
-				modsPanel.footer(g, contentX, py + ph - 19, a * ta);
 			}
 			case PROFILE -> drawProfile(g, mx, my - oy, a * ta);
 			case CROSSHAIR -> crosshairPanel.draw(g, contentX, contentY, contentW, a * ta);
@@ -232,7 +232,7 @@ public class XionMenuScreen extends BaseScreen {
 		g.vGradient(px + 2, py + 2, pw - 4, Math.min(92, ph / 3), Colors.alpha(Colors.ACCENT, 0.075f * a), 0x00FFFFFF);
 
 		// Slow drifting motes behind the glass.
-		for (int i = 0; i < 14; i++) {
+		for (int i = 0; i < (tab == Tab.MODS ? 0 : 14); i++) {
 			int dx = px + 16 + (int) ((i * 83L + now / 85) % Math.max(1, pw - 32));
 			int dy = py + HEADER_H + (int) ((i * 47L + now / 120) % Math.max(1, ph - HEADER_H - 18));
 			float tw = (float) ((Math.sin(now / 900.0 + i * 1.7) + 1) / 2);
@@ -252,10 +252,7 @@ public class XionMenuScreen extends BaseScreen {
 		g.pill(lx - 2, ly - 2, 28, 28, Colors.alpha(orb, 0.12f * a));
 		g.pill(lx, ly, 24, 24, Colors.alpha(Colors.lerp(Colors.CARD, Colors.ACCENT, 0.2f), a));
 		g.pillOutline(lx, ly, 24, 24, Colors.alpha(0x38FFFFFF, a));
-		g.fill(lx + 11, ly + 5, lx + 13, ly + 19, Colors.alpha(0xFFFFFFFF, a));
-		g.fill(lx + 5, ly + 11, lx + 19, ly + 13, Colors.alpha(0xFFFFFFFF, a));
-		g.fill(lx + 8, ly + 8, lx + 16, ly + 16, Colors.alpha(orb, 0.55f * a));
-		g.fill(lx + 11, ly + 11, lx + 13, ly + 13, Colors.alpha(0xFFFFFFFF, a));
+		g.centeredText(Badge.glyph(), lx + 12, ly + 1, 2.6f, Colors.alpha(0xFFFFFFFF, a), false);
 
 		g.scaledText("XION", px + 46, py + 8, 1.5f, Colors.alpha(Colors.TEXT, a), true);
 		int titleW = (int) (g.font.width("XION") * 1.5f);
@@ -270,7 +267,7 @@ public class XionMenuScreen extends BaseScreen {
 		}
 		g.text("v" + XionClient.VERSION + "   ·   Nightfall", px + 46, py + 27, Colors.alpha(Colors.MUTED, a), false);
 
-		String fps = HudManager.fps() + " FPS";
+		String fps = minecraft.level == null ? "Ready" : HudManager.fps() + " FPS";
 		g.text(fps, px + pw - 74 - g.font.width(fps), py + 20, Colors.alpha(Colors.MUTED, a), false);
 
 		// Sidebar rail.
@@ -282,7 +279,7 @@ public class XionMenuScreen extends BaseScreen {
 		if (tab != Tab.AI) {
 			g.pill(contentX - 6, contentY - 6, contentW + 12, contentH + 12, Colors.alpha(0x6610141D, a));
 			g.pillOutline(contentX - 6, contentY - 6, contentW + 12, contentH + 12, Colors.alpha(0x18FFFFFF, a));
-			g.fill(contentX - 6, contentY - 6, contentX - 4, contentY + 18, Colors.alpha(Colors.ACCENT, 0.8f * a));
+			if (tab != Tab.MODS) g.fill(contentX - 6, contentY - 6, contentX - 4, contentY + 18, Colors.alpha(Colors.ACCENT, 0.8f * a));
 			g.vGradient(contentX - 4, contentY - 4, contentW + 8, Math.min(54, contentH / 3), Colors.alpha(Colors.ACCENT_2, 0.045f * a), 0x00FFFFFF);
 		}
 	}
@@ -300,10 +297,10 @@ public class XionMenuScreen extends BaseScreen {
 			boolean locked = tg.premium() && !Premium.active();
 			g.pillOutline(x, y, cardW, CARD_H, on && !locked ? Colors.alpha(Colors.ACCENT, 0.3f * a) : Colors.alpha(0x14FFFFFF, a));
 			if (on && !locked) g.fill(x, y + 5, x + 2, y + CARD_H - 5, Colors.alpha(Colors.ACCENT, 0.85f * a));
-			g.text(g.font.plainSubstrByWidth(tg.name(), cardW - 62), x + 7, y + 6, Colors.alpha(locked ? Colors.MUTED : Colors.TEXT, a), false);
-			if (tg.premium()) g.text("XION+", x + cardW - 30 - g.font.width("XION+"), y + 6, Colors.alpha(Colors.GOLD, a), false);
+			g.text(g.font.plainSubstrByWidth(tg.name(), cardW - 62), x + 10, y + 9, Colors.alpha(locked ? Colors.MUTED : Colors.TEXT, a), false);
+			if (tg.premium()) g.text("XION+", x + cardW - 30 - g.font.width("XION+"), y + 9, Colors.alpha(Colors.GOLD, a), false);
 			String sub = tg.module() != null && hov && mx < x + cardW - 30 && !locked ? "Settings ›" : tg.desc();
-			g.text(g.font.plainSubstrByWidth(sub, cardW - 36), x + 7, y + 19, Colors.alpha(sub.equals("Settings ›") ? Colors.ACCENT : Colors.MUTED, a), false);
+			g.text(g.font.plainSubstrByWidth(sub, cardW - 42), x + 10, y + 26, Colors.alpha(sub.equals("Settings ›") ? Colors.ACCENT : Colors.MUTED, a), false);
 			if (locked) on = false;
 			int sx = x + cardW - 26, sy = y + (CARD_H - 10) / 2;
 			g.pill(sx, sy, 20, 10, Colors.alpha(on ? Colors.ACCENT : 0xFF2A303C, a));
@@ -346,6 +343,15 @@ public class XionMenuScreen extends BaseScreen {
 		for (int i = 0; i < lines.length; i++) {
 			g.text(lines[i], ix, top + 42 + i * 11, Colors.alpha(i >= 4 ? Colors.MUTED : Colors.TEXT, a), false);
 		}
+		if (contentH >= 210) {
+			int bx = contentX + 8, by = top + 156, bw = (contentW - 24) / 2;
+			for (int i = 0; i < 2; i++) {
+				int x = bx + i * (bw + 8);
+				g.pill(x, by, bw, 42, Colors.alpha(Colors.CARD, a));
+				g.text(i == 0 ? "FREE · ANIMATED" : "XION+ · ANIMATED", x + 8, by + 7, Colors.alpha(i == 0 ? Colors.ACCENT : Colors.GOLD, a), false);
+				g.scaledText(Badge.glyph(i == 1) + " Player", x + 8, by + 22, 1.2f, Colors.alpha(Colors.TEXT, a), false);
+			}
+		}
 
 		// A quiet footer card so the right side of the wider menu does not feel empty.
 		int fx = contentX + contentW - 118;
@@ -370,6 +376,7 @@ public class XionMenuScreen extends BaseScreen {
 			return c != CosmeticsPanel.Click.NONE;
 		}
 		if (tab == Tab.MODS) {
+			if (button != 0) return false;
 			ModsPanel.Click c = modsPanel.click(x, y, contentX, contentY, contentW, contentH, scroll, this);
 			if (c == ModsPanel.Click.FILTER) scroll = 0;
 			if (c == ModsPanel.Click.XION) switchTab(Tab.HUD);
@@ -403,6 +410,11 @@ public class XionMenuScreen extends BaseScreen {
 	}
 
 	@Override
+	protected void release(double x, double y, int button) {
+		if (tab == Tab.MODS && modsPanel.release(x, y, button, this) == ModsPanel.Click.XION) switchTab(Tab.HUD);
+	}
+
+	@Override
 	protected void scroll(double x, double y, double amount) {
 		if (tab == Tab.AI) {
 			aiPanel.scroll(x, y, amount);
@@ -414,11 +426,25 @@ public class XionMenuScreen extends BaseScreen {
 
 	@Override
 	protected boolean key(int keyCode, int scanCode, int modifiers) {
+		if (tab == Tab.MODS) {
+			ModsPanel.Click result = modsPanel.key(keyCode, modifiers);
+			if (result == ModsPanel.Click.FILTER) scroll = 0;
+			if (result != ModsPanel.Click.NONE) return true;
+			if (keyCode == 266 || keyCode == 267) {
+				scroll = Math.max(0, Math.min(Math.max(0, rowsHeight() - contentH), scroll + (keyCode == 266 ? -1 : 1) * contentH * 0.75));
+				return true;
+			}
+		}
 		return tab == Tab.AI && aiPanel.key(keyCode, scanCode, modifiers);
 	}
 
 	@Override
 	protected boolean character(char codePoint, int modifiers) {
+		if (tab == Tab.MODS) {
+			ModsPanel.Click result = modsPanel.character(codePoint, modifiers);
+			if (result == ModsPanel.Click.FILTER) scroll = 0;
+			return result != ModsPanel.Click.NONE;
+		}
 		return tab == Tab.AI && aiPanel.character(codePoint, modifiers);
 	}
 

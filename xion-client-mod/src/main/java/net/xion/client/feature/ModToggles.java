@@ -23,6 +23,7 @@ public final class ModToggles {
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 	private static final Path FILE = FabricLoader.getInstance().getConfigDir().resolve("xion-mod-toggles.json");
 	private static Data data;
+	private static int revision;
 
 	private ModToggles() {}
 
@@ -54,9 +55,16 @@ public final class ModToggles {
 		return data().mods.size();
 	}
 
+	/** Lets the mod browser invalidate its filtered list only when choices change. */
+	public static int revision() {
+		data();
+		return revision;
+	}
+
 	public static void set(String id, boolean enabled, boolean loadedNow) {
 		if (enabled == loadedNow) data().mods.remove(id);
 		else data().mods.put(id, enabled);
+		revision++;
 		save();
 	}
 

@@ -25,7 +25,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 
 public class XionClient implements ClientModInitializer {
 	public static final String MOD_ID = "xionclient";
-	public static final String VERSION = "1.26.1";
+	public static final String VERSION = "1.26.2";
 	private static final int KEY_RIGHT_SHIFT = 344;
 
 	private static KeyMapping menuKey;
@@ -105,6 +105,25 @@ public class XionClient implements ClientModInitializer {
 		if (previewTicks == 0 && Minecraft.getInstance().level == null && !(Compat.screen() instanceof net.xion.client.ui.XionTitleScreen)) return;
 		previewTicks++;
 		Minecraft mc = Minecraft.getInstance();
+		// Isolated UI review: -Dxionclient.preview=true -Dxionclient.preview.tab=MODS
+		// Add -Dxionclient.preview.capture=true to save a real in-game screenshot (no AI request).
+		String review = System.getProperty("xionclient.preview.tab", "");
+		if (!review.isEmpty()) {
+			if (previewTicks == 40) Compat.setScreen(new XionMenuScreen(null, XionMenuScreen.Tab.valueOf(review)));
+			if (previewTicks == 100 && Boolean.getBoolean("xionclient.preview.capture")) {
+				//#if MC >= 260000
+				net.minecraft.client.Screenshot.grab(mc.gameDirectory, "xion-" + review.toLowerCase() + "-preview.png", mc.gameRenderer.mainRenderTarget(), 1,
+					c -> System.out.println("[Xion Preview] " + c.getString()));
+				//#elif MC >= 12106
+				net.minecraft.client.Screenshot.grab(mc.gameDirectory, "xion-" + review.toLowerCase() + "-preview.png", mc.getMainRenderTarget(), 1,
+					c -> System.out.println("[Xion Preview] " + c.getString()));
+				//#else
+				net.minecraft.client.Screenshot.grab(mc.gameDirectory, "xion-" + review.toLowerCase() + "-preview.png", mc.getMainRenderTarget(),
+					c -> System.out.println("[Xion Preview] " + c.getString()));
+				//#endif
+			}
+			return;
+		}
 		if (previewTicks == 200) Compat.setScreen(new XionMenuScreen(null, XionMenuScreen.Tab.HUD));
 		else if (previewTicks == 300) Compat.setScreen(new XionMenuScreen(null, XionMenuScreen.Tab.CROSSHAIR));
 		else if (previewTicks == 360) Compat.setScreen(new XionMenuScreen(null, XionMenuScreen.Tab.AI));

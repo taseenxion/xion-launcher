@@ -13,6 +13,20 @@
 			"ascent": 7,
 			"height": 8,
 			"chars": [""]
+		},
+		{
+			"type": "bitmap",
+			"file": "xionclient:font/badge_free.png",
+			"ascent": 8,
+			"height": 9,
+			"chars": ["\ue7b0\ue7b1\ue7b2\ue7b3\ue7b4\ue7b5\ue7b6\ue7b7", "\ue7b8\ue7b9\ue7ba\ue7bb\ue7bc\ue7bd\ue7be\ue7bf"]
+		},
+		{
+			"type": "bitmap",
+			"file": "xionclient:font/badge_premium.png",
+			"ascent": 8,
+			"height": 9,
+			"chars": ["\ue7c0\ue7c1\ue7c2\ue7c3\ue7c4\ue7c5\ue7c6\ue7c7", "\ue7c8\ue7c9\ue7ca\ue7cb\ue7cc\ue7cd\ue7ce\ue7cf"]
 		}
 	]
 }

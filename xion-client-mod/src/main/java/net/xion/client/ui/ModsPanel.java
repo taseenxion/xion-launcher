@@ -13,6 +13,7 @@ import net.xion.client.compat.Compat;
 import net.xion.client.compat.Gfx;
 import net.xion.client.feature.ModToggles;
 import net.xion.client.feature.PackLogos;
+import net.xion.client.feature.Badge;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -24,6 +25,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -32,32 +34,20 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * Mods page of the Xion menu.
- *
- * The grid is split into sections: XION MODS (the mods Xion Launcher itself installs) and YOUR
- * MODS (everything the player added). Each card shows the mod's own logo — read from the jar,
- * falling back to Xion's hand-drawn glyph — with the mod name and version, and two buttons at the
- * bottom: an Enable/Disabled switch on the left and a Settings button on the right (greyed out
- * when the mod ships no config screen). Cards slide in one after another, the logo pops in once
- * its card has landed and floats gently. Switching a mod applies on the next launch (see
- * ModToggles).
+ * Modern mod library: a pinned search/filter toolbar, readable icon-led cards and explicit controls.
+ * Only visible cards render; filtered lists and textures are cached. Clicking a card no longer
+ * accidentally disables a mod, and config screens open on release rather than inheriting the click.
  */
 final class ModsPanel {
 	enum Click { NONE, HANDLED, FILTER, XION }
 
-	enum Filter { ALL, PACK, ADDED }
-
-	private static final int CARD_H = 62;
-	private static final int GAP = 6;
-	private static final int CHIPS_H = 20;
-	private static final int HEAD_H = 20;
-	private static final int ICON = 26;
-	private static final int PAD = 8;
+	enum Filter { ALL, PACK, ADDED, CHANGES }
+	private static final int CARD_H = ModsLayout.CARD, GAP = ModsLayout.GAP;
 	/** Never switched off from here: the client itself and what every profile needs. */
 	private static final Set<String> CORE = Set.of("xionclient", "fabric-api", "fabric-language-kotlin");
 
 	private static final class Entry {
-		String id, name, version;
+		String id, name, version, description = "", authors = "", search = "";
 		ModContainer container; // null for a disabled jar
 		Path jar;               // set for a disabled jar
 		Path root;              // mod folder (dev) or jar file (game), for reading the logo
@@ -65,6 +55,7 @@ final class ModsPanel {
 		boolean loaded, pre, xion;
 		String lockedBy;        // non-null: can't be switched off
 		Function<Screen, Screen> config;
+		float hover, switchAmount;
 	}
 
 	/** One titled run of cards: the Xion pack, then the player's own mods. */
@@ -82,6 +73,19 @@ final class ModsPanel {
 	private Filter filter = Filter.ALL;
 	private long openedAt = System.currentTimeMillis();
 	private int loadedCount;
+	private final SearchInput search = new SearchInput();
+	private boolean searchFocused;
+	private double smoothScroll;
+	private long lastFrame;
+	private List<Block> view = List.of();
+	private Filter viewFilter;
+	private String viewQuery;
+	private int viewRevision = -1;
+	private final List<Hit> hits = new ArrayList<>();
+	private Entry hovered, selected, pressed;
+	private ModsLayout.Rect pressedRect;
+	private int pressedAction;
+	private record Hit(Entry entry, ModsLayout.Controls controls) {}
 
 	ModsPanel(Map<String, Function<Screen, Screen>> configs) {
 		scan(configs);
@@ -90,6 +94,9 @@ final class ModsPanel {
 	/** Replays the entrance animation (when the tab is opened). */
 	void restart() {
 		openedAt = System.currentTimeMillis();
+		smoothScroll = 0;
+		lastFrame = 0;
+		pressed = null;
 	}
 
 	int loadedCount() {
@@ -110,8 +117,11 @@ final class ModsPanel {
 			e.id = id;
 			e.name = meta.getName();
 			e.version = meta.getVersion().getFriendlyString();
+			e.description = clean(meta.getDescription());
+			e.authors = meta.getAuthors().stream().map(a -> a.getName()).collect(java.util.stream.Collectors.joining(", "));
 			e.container = m;
 			e.loaded = true;
+			e.switchAmount = 1f;
 			e.xion = id.equals("xionclient");
 			e.pre = e.xion || PackLogos.isPreinstalled(m);
 			e.config = configs.get(id);
@@ -143,7 +153,8 @@ final class ModsPanel {
 			}
 		}
 		scanDisabled(loadedIds);
-		all.sort(Comparator.comparing((Entry e) -> !e.xion).thenComparing(e -> !e.pre).thenComparing(e -> e.name.toLowerCase()));
+		for (Entry e : all) e.search = (e.id + " " + e.name + " " + e.description + " " + e.authors).toLowerCase(Locale.ROOT);
+		all.sort(Comparator.comparing((Entry e) -> !e.xion).thenComparing(e -> !e.pre).thenComparing(e -> e.name.toLowerCase(Locale.ROOT)));
 	}
 
 	private static boolean hidden(String id) {
@@ -165,6 +176,7 @@ final class ModsPanel {
 				e.id = id;
 				e.name = meta.has("name") ? meta.get("name").getAsString() : id;
 				e.version = meta.has("version") ? meta.get("version").getAsString() : "";
+				e.description = meta.has("description") && meta.get("description").isJsonPrimitive() ? clean(meta.get("description").getAsString()) : "";
 				e.jar = p;
 				e.root = p;
 				e.icon = iconFromMeta(meta);
@@ -239,266 +251,256 @@ final class ModsPanel {
 	}
 
 	private List<Block> blocks() {
+		int revision = ModToggles.revision();
+		if (filter == viewFilter && search.value().equals(viewQuery) && revision == viewRevision) return view;
+		viewFilter = filter;
+		viewQuery = search.value();
+		viewRevision = revision;
+		String query = search.value().trim().toLowerCase(Locale.ROOT);
 		List<Entry> xion = new ArrayList<>(), added = new ArrayList<>();
-		for (Entry e : all) (e.pre ? xion : added).add(e);
+		for (Entry e : all) {
+			if (!query.isEmpty() && !e.search.contains(query)) continue;
+			if (filter == Filter.CHANGES && !ModToggles.pending(e.id, e.loaded)) continue;
+			(e.pre ? xion : added).add(e);
+		}
 		List<Block> out = new ArrayList<>();
-		if (filter != Filter.ADDED && !xion.isEmpty()) out.add(new Block("XION MODS", xion));
-		if (filter != Filter.PACK && !added.isEmpty()) out.add(new Block("YOUR MODS", added));
-		return out;
+		if (filter != Filter.ADDED && !xion.isEmpty()) out.add(new Block("Xion essentials", xion));
+		if (filter != Filter.PACK && !added.isEmpty()) out.add(new Block("Your collection", added));
+		return view = out;
 	}
 
 	private int count(Filter f) {
 		if (f == Filter.ALL) return all.size();
+		if (f == Filter.CHANGES) return ModToggles.pendingCount();
 		int n = 0;
 		for (Entry e : all) if (f == Filter.PACK ? e.pre : !e.pre) n++;
 		return n;
 	}
 
-	// ---- layout ----
-
-	private static int cols(int w) {
-		return w >= 300 ? 2 : 1;
-	}
-
-	private static int cardW(int w) {
-		int c = cols(w);
-		return (w - (c - 1) * GAP) / c;
-	}
+	// ---- layout and rendering ----
 
 	int height(int w) {
-		int c = cols(w);
-		int total = CHIPS_H;
-		for (Block b : blocks()) {
-			total += HEAD_H + ((b.entries.size() + c - 1) / c) * (CARD_H + GAP);
-		}
-		return total + 2;
+		int total = ModsLayout.HEADER + ModsLayout.FOOTER;
+		for (Block b : blocks()) total += ModsLayout.SECTION + ((b.entries.size() + ModsLayout.columns(w) - 1) / ModsLayout.columns(w)) * (CARD_H + GAP);
+		return total;
 	}
-
-	private String chipLabel(Filter f) {
-		String name = f == Filter.ALL ? "All" : f == Filter.PACK ? "Xion" : "Added";
-		return name + "  " + count(f);
-	}
-
-	// ---- drawing ----
 
 	void draw(Gfx g, int x, int y, int w, int h, double scroll, int mx, int my, float a) {
-		long now = System.currentTimeMillis();
-		float t = now / 1000f;
-
-		int chipY = y - (int) scroll;
-		if (chipY >= y - 1) {
-			int cx = x;
-			for (Filter f : Filter.values()) {
-				String label = chipLabel(f);
-				int cw = g.font.width(label) + 14;
-				boolean sel = f == filter;
-				boolean hov = mx >= cx && mx < cx + cw && my >= chipY && my < chipY + 14;
-				g.pill(cx, chipY, cw, 14, Colors.alpha(sel ? Colors.lerp(Colors.CARD, Colors.ACCENT, 0.22f) : hov ? Colors.CARD_HOVER : Colors.CARD, a));
-				g.pillOutline(cx, chipY, cw, 14, sel ? Colors.alpha(Colors.ACCENT, 0.7f * a) : Colors.alpha(0x14FFFFFF, a));
-				g.text(label, cx + 7, chipY + 3, Colors.alpha(sel ? Colors.ACCENT : hov ? Colors.TEXT : Colors.MUTED, a), false);
-				cx += cw + 5;
+		long now = System.currentTimeMillis(), nano = System.nanoTime();
+		float dt = lastFrame == 0 ? 0.016f : Math.min(0.05f, (nano - lastFrame) / 1_000_000_000f);
+		lastFrame = nano;
+		double max = Math.max(0, height(w) - h);
+		smoothScroll += (Math.max(0, Math.min(max, scroll)) - smoothScroll) * Math.min(1, dt * 16);
+		smoothScroll = Math.max(0, Math.min(max, smoothScroll));
+		hits.clear();
+		hovered = null;
+		int top = y + ModsLayout.HEADER, bottom = y + h - ModsLayout.FOOTER;
+		int c = ModsLayout.columns(w), cw = ModsLayout.cardWidth(w), iy = top - (int) Math.round(smoothScroll), index = 0;
+		g.scissor(x - 1, top, x + w + 1, Math.max(top, bottom));
+		for (Block b : blocks()) {
+			if (iy + ModsLayout.SECTION >= top && iy <= bottom) {
+				g.text(b.title, x + 1, iy + 7, Colors.alpha(Colors.MUTED, a), false);
+				String n = Integer.toString(b.entries.size());
+				g.text(n, x + w - g.font.width(n), iy + 7, Colors.alpha(Colors.MUTED, a), false);
 			}
-		}
-
-		int c = cols(w), cw = cardW(w);
-		int iy = y + CHIPS_H - (int) scroll;
-		int index = 0;
-		List<Block> blocks = blocks();
-		if (blocks.isEmpty()) {
-			g.text("No mods here yet.", x, y + CHIPS_H + 10, Colors.alpha(Colors.MUTED, a), false);
-			return;
-		}
-		for (Block b : blocks) {
-			if (iy + HEAD_H > y - 1 && iy < y + h + 1) header(g, b, x, iy, w, a);
-			iy += HEAD_H;
-			for (int i = 0; i < b.entries.size(); i++) {
-				int cx = x + (i % c) * (cw + GAP);
-				int cy = iy + (i / c) * (CARD_H + GAP);
-				if (cy + CARD_H > y - 1 && cy < y + h + 1) {
-					card(g, b.entries.get(i), cx, cy, cw, index, now, t, mx, my, a);
-				}
-				index++;
+			iy += ModsLayout.SECTION;
+			for (int i = 0; i < b.entries.size(); i++, index++) {
+				int cx = x + (i % c) * (cw + GAP), cy = iy + (i / c) * (CARD_H + GAP);
+				if (cy + CARD_H >= top && cy <= bottom) card(g, b.entries.get(i), cx, cy, cw, index, now, dt, mx, my, top, bottom, a);
 			}
 			iy += ((b.entries.size() + c - 1) / c) * (CARD_H + GAP);
 		}
-	}
-
-	/** Section title: accent label, hairline rule, count on the right. */
-	private void header(Gfx g, Block b, int x, int y, int w, float a) {
-		String label = b.title;
-		String n = b.entries.size() + (b.entries.size() == 1 ? " mod" : " mods");
-		int nw = g.font.width(n);
-		g.text(label, x, y + 4, Colors.alpha(Colors.ACCENT, a), false);
-		int tw = g.font.width(label);
-		g.fill(x + tw + 8, y + 8, x + w - nw - 8, y + 9, Colors.alpha(Colors.lerp(Colors.CARD, Colors.ACCENT, 0.18f), a));
-		g.text(n, x + w - nw, y + 4, Colors.alpha(Colors.MUTED, a), false);
-	}
-
-	private void card(Gfx g, Entry e, int cx, int cy, int cw, int index, long now, float t, int mx, int my, float a) {
-		// Entrance: cards slide in from the left and fade, one after another.
-		float p = Math.max(0f, Math.min(1f, (now - openedAt - index * 26L) / 300f));
-		float ease = 1f - (1f - p) * (1f - p) * (1f - p);
-		if (ease <= 0f) return;
-		float ca = a * ease;
-		int dx = Math.round((1f - ease) * 18f);
-		int dy = Math.round((1f - ease) * 8f);
-		// The logo pops in a moment after its card has landed.
-		float pop = Math.max(0f, Math.min(1f, (now - openedAt - index * 26L - 120L) / 280f));
-		pop = 1f - (1f - pop) * (1f - pop);
-
-		g.push();
-		g.translate(dx, 0);
-		int top = cy + dy;
-		boolean hov = ease >= 1f && mx - dx >= cx && mx - dx < cx + cw && my >= top && my < top + CARD_H;
-
-		boolean on = ModToggles.wanted(e.id, e.loaded);
-		boolean pending = ModToggles.pending(e.id, e.loaded);
-		boolean locked = e.lockedBy != null;
-		boolean hasCfg = e.config != null || e.xion;
-
-		// Card
-		g.pill(cx, top, cw, CARD_H, Colors.alpha(hov ? Colors.CARD_HOVER : Colors.CARD, ca));
-		g.vGradient(cx + 2, top + 1, cw - 4, 18, Colors.alpha(hov ? 0x18FFFFFF : 0x0CFFFFFF, ca), 0x00FFFFFF);
-		int outline = hov ? Colors.alpha(Colors.ACCENT, 0.55f * ca)
-			: pending ? Colors.alpha(Colors.ACCENT, (0.30f + 0.25f * pulse(t, 0)) * ca)
-			: on && e.pre ? Colors.alpha(Colors.ACCENT, 0.18f * ca)
-			: Colors.alpha(0x14FFFFFF, ca);
-		g.pillOutline(cx, top, cw, CARD_H, outline);
-
-		// Name and version
-		String ver = e.version == null || e.version.isEmpty() ? "" : e.version;
-		int verW = Math.min(g.font.width(ver), 38);
-		String verFit = g.font.plainSubstrByWidth(ver, 38);
-		int nameW = cw - PAD * 2 - (verFit.isEmpty() ? 0 : verW + 8);
-		g.text(g.font.plainSubstrByWidth(e.name, nameW), cx + PAD, top + 7, Colors.alpha(on ? Colors.TEXT : Colors.MUTED, ca), false);
-		if (!verFit.isEmpty()) g.text(verFit, cx + cw - PAD - g.font.width(verFit), top + 7, Colors.alpha(Colors.MUTED, ca), false);
-
-		// Logo: the mod's own icon, centred, bobbing gently, grown on hover. Dimmed when off.
-		int gy = top + 30;
-		int size = Math.round(ICON * (0.55f + 0.45f * pop)) + (hov ? 2 : 0);
-		int bob = Math.round((float) Math.sin(t * 2.0f + index * 0.7f) * 1.4f);
-		if (hov) {
-			g.rounded(cx + cw / 2 - 17, gy - 17 + bob, 34, 34, Colors.alpha(Colors.ACCENT, 0.09f * ca));
+		if (blocks().isEmpty()) {
+			g.centeredText("No matching mods", x + w / 2f, top + 26, 1.15f, Colors.alpha(Colors.TEXT, a), false);
+			g.centeredText("Try another search or filter", x + w / 2f, top + 43, 0.9f, Colors.alpha(Colors.MUTED, a), false);
 		}
-		int iconColor = on ? (hov ? 0xFFFFFFFF : Colors.TEXT) : Colors.lerp(Colors.MUTED, Colors.CARD, 0.25f);
-		ModLogos.Logo logo = ModLogos.get(e.root, e.icon, e.id);
-		if (logo != null) {
-			int w2 = logo.width(), h2 = logo.height();
-			int w = w2 >= h2 ? size : Math.round(size * w2 / (float) h2);
-			int h = h2 >= w2 ? size : Math.round(size * h2 / (float) w2);
-			g.blit(logo.texture(), cx + cw / 2 - w / 2, gy + bob - h / 2, w, h, 0, 0, w2, h2, w2, h2, Colors.alpha(iconColor, ca * pop));
-		} else {
-			ModIcons.draw(g, kind(e), cx + cw / 2, gy + bob, size, Colors.alpha(iconColor, ca * pop));
+		g.endScissor();
+		if (max > 0 && bottom > top) {
+			int viewH = bottom - top, bodyH = viewH + (int) max;
+			int bar = Math.max(16, viewH * viewH / Math.max(1, bodyH));
+			int barY = top + (int) ((viewH - bar) * smoothScroll / max);
+			g.fill(x + w + 3, top, x + w + 5, bottom, Colors.alpha(0x15FFFFFF, a));
+			g.rounded(x + w + 3, barY, 2, bar, Colors.alpha(Colors.ACCENT, 0.75f * a));
 		}
-
-		// Footer: an Enable/Disabled switch on the left, a Settings button on the right.
-		int fy = top + CARD_H - 18;
-		int half = (cw - PAD * 2 - 4) / 2;
-		int tx = cx + PAD, sxx = tx + half + 4;
-		int setW = cw - PAD - sxx;
-
-		String tLabel;
-		int tBg, tFg;
-		if (pending) {
-			tLabel = on ? "Turns off" : "Turns on";
-			tBg = Colors.alpha(Colors.ACCENT, 0.16f * ca);
-			tFg = Colors.alpha(Colors.ACCENT, (0.7f + 0.3f * pulse(t, 0)) * ca);
-		} else if (locked) {
-			tLabel = "Required";
-			tBg = Colors.alpha(0xFF1E2430, ca);
-			tFg = Colors.alpha(Colors.MUTED, ca);
-		} else if (on) {
-			tLabel = "Enabled";
-			tBg = Colors.alpha(Colors.OK, 0.16f * ca);
-			tFg = Colors.alpha(Colors.OK, ca);
-		} else {
-			tLabel = "Disabled";
-			tBg = Colors.alpha(0xFF1E2430, ca);
-			tFg = Colors.alpha(Colors.MUTED, ca);
-		}
-		boolean tHov = hov && !locked && mx - dx >= tx && mx - dx < tx + half && my >= fy && my < fy + 14;
-		g.pill(tx, fy, half, 14, tHov ? Colors.alpha(Colors.lerp(tBg, Colors.ACCENT, 0.25f), ca) : tBg);
-		if (pending) g.pillOutline(tx, fy, half, 14, Colors.alpha(Colors.ACCENT, 0.4f * ca));
-		else if (tHov) g.pillOutline(tx, fy, half, 14, Colors.alpha(Colors.ACCENT, 0.5f * ca));
-		g.centeredText(g.font.plainSubstrByWidth(tLabel, half - 8), tx + half / 2f, fy + 3f, 1f, tFg, false);
-
-		boolean sHov = hasCfg && hov && mx - dx >= sxx && mx - dx < sxx + setW && my >= fy && my < fy + 14;
-		g.pill(sxx, fy, setW, 14, Colors.alpha(sHov ? Colors.lerp(Colors.CARD_HOVER, Colors.ACCENT, 0.35f) : 0xFF1E2430, ca));
-		if (sHov) g.pillOutline(sxx, fy, setW, 14, Colors.alpha(Colors.ACCENT, 0.5f * ca));
-		g.centeredText(g.font.plainSubstrByWidth(hasCfg ? "Settings" : "No settings", setW - 8), sxx + setW / 2f, fy + 3f, 1f,
-			Colors.alpha(hasCfg ? (sHov ? 0xFFFFFFFF : Colors.ACCENT) : Colors.MUTED, ca), false);
-		g.pop();
-	}
-
-	/** Bottom-left status line of the menu. */
-	void footer(Gfx g, int x, int y, float a) {
+		toolbar(g, x, y, w, mx, my, a, now);
+		g.fill(x, bottom, x + w, bottom + 1, Colors.alpha(0x15FFFFFF, a));
 		int changes = ModToggles.pendingCount();
-		if (changes > 0) {
-			float t = System.currentTimeMillis() / 1000f;
-			String s = "↻ " + changes + (changes == 1 ? " change" : " changes") + " — restart the game to apply";
-			g.text(s, x, y, Colors.alpha(Colors.ACCENT, (0.7f + 0.3f * pulse(t, 0)) * a), false);
-		} else {
-			int pre = count(Filter.PACK);
-			g.text(all.size() + " mods  ·  " + pre + " from Xion", x, y, Colors.alpha(Colors.MUTED, a), false);
+		Entry info = hovered != null ? hovered : selected;
+		String note = info != null ? info.name + " · " + (info.lockedBy != null ? info.lockedBy : info.description.isEmpty() ? info.id : info.description)
+			: changes > 0 ? "↻ " + changes + " changes · restart Minecraft to apply" : "Click a switch to enable · Settings to configure · Ctrl+F to search";
+		g.text(fit(g, note, w - 2), x + 1, bottom + 8, Colors.alpha(changes > 0 && info == null ? Colors.GOLD : Colors.MUTED, a), false);
+	}
+
+	private void toolbar(Gfx g, int x, int y, int w, int mx, int my, float a, long now) {
+		g.scaledText("Mod library", x, y + 2, 1.35f, Colors.alpha(Colors.TEXT, a), false);
+		String count = all.size() + " installed";
+		g.text(count, x + w - g.font.width(count), y + 6, Colors.alpha(Colors.MUTED, a), false);
+		ModsLayout.Rect r = new ModsLayout.Rect(x, y + 26, w, 24);
+		g.pill(r.x(), r.y(), r.w(), r.h(), Colors.alpha(searchFocused ? 0xFF1C2535 : 0xFF141B28, a));
+		g.pillOutline(r.x(), r.y(), r.w(), r.h(), Colors.alpha(searchFocused ? Colors.ACCENT : 0x28FFFFFF, searchFocused ? 0.65f * a : a));
+		// Magnifier, sized for Minecraft's pixel grid.
+		g.pillOutline(x + 9, y + 33, 7, 7, Colors.alpha(Colors.MUTED, a));
+		g.fill(x + 15, y + 39, x + 18, y + 40, Colors.alpha(Colors.MUTED, a));
+		g.fill(x + 17, y + 40, x + 18, y + 42, Colors.alpha(Colors.MUTED, a));
+		int tx = x + 25, tw = Math.max(20, w - 51), start = 0;
+		while (start < search.cursor() && g.font.width(search.value().substring(start, search.cursor())) > tw - 2) start = search.value().offsetByCodePoints(start, 1);
+		g.scissor(tx, y + 30, tx + tw, y + 47);
+		if (search.value().isEmpty()) g.text(fit(g, "Search mods…", tw), tx, y + 34, Colors.alpha(Colors.MUTED, a), false);
+		else {
+			if (searchFocused && search.selected()) {
+				int sx = tx + g.font.width(search.value().substring(start, Math.max(start, search.start())));
+				int ex = tx + g.font.width(search.value().substring(start, Math.max(start, search.end())));
+				g.fill(sx, y + 32, ex, y + 44, Colors.alpha(Colors.ACCENT, 0.28f * a));
+			}
+			g.text(search.value().substring(start), tx, y + 34, Colors.alpha(Colors.TEXT, a), false);
+		}
+		if (searchFocused && (now / 500) % 2 == 0) {
+			int caret = tx + g.font.width(search.value().substring(start, search.cursor()));
+			g.fill(caret, y + 32, caret + 1, y + 44, Colors.alpha(Colors.ACCENT, a));
+		}
+		g.endScissor();
+		if (!search.value().isEmpty()) g.text("×", x + w - 16, y + 34, Colors.alpha(Colors.MUTED, a), false);
+		int chipW = (w - 3 * 5) / 4;
+		for (Filter f : Filter.values()) {
+			int cx = x + f.ordinal() * (chipW + 5), cy = y + 58;
+			boolean on = f == filter, over = new ModsLayout.Rect(cx, cy, chipW, 16).contains(mx, my);
+			String label = switch (f) { case ALL -> "All"; case PACK -> "Xion"; case ADDED -> "Added"; case CHANGES -> "Changes"; };
+			if (w >= 400) label += "  " + count(f);
+			g.pill(cx, cy, chipW, 16, Colors.alpha(on ? Colors.lerp(0xFF182133, Colors.ACCENT, 0.2f) : over ? 0xFF202939 : 0xFF151C28, a));
+			g.pillOutline(cx, cy, chipW, 16, Colors.alpha(on ? Colors.ACCENT : 0x1BFFFFFF, on ? 0.5f * a : a));
+			g.centeredText(fit(g, label, chipW - 6), cx + chipW / 2f, cy + 4, 1f, Colors.alpha(on ? Colors.TEXT : Colors.MUTED, a), false);
 		}
 	}
 
-	private static float pulse(float t, int phase) {
-		return (float) (Math.sin(t * 3.0 + phase * 0.6) + 1) / 2f;
+	private void card(Gfx g, Entry e, int x, int y, int w, int index, long now, float dt, int mx, int my, int top, int bottom, float a) {
+		float p = Math.max(0, Math.min(1, (now - openedAt - Math.min(index, 8) * 24L) / 280f));
+		float enter = 1 - (1 - p) * (1 - p) * (1 - p);
+		y += Math.round((1 - enter) * 7);
+		float ca = a * enter;
+		ModsLayout.Controls controls = ModsLayout.controls(x, y, w);
+		boolean over = controls.card().contains(mx, my) && my >= top && my < bottom;
+		e.hover += ((over ? 1 : 0) - e.hover) * Math.min(1, dt * 14);
+		boolean on = ModToggles.wanted(e.id, e.loaded), pending = ModToggles.pending(e.id, e.loaded), locked = e.lockedBy != null;
+		e.switchAmount += ((on ? 1 : 0) - e.switchAmount) * Math.min(1, dt * 18);
+		if (enter > 0.75f) hits.add(new Hit(e, controls));
+		if (over) hovered = e;
+		g.pill(x, y, w, CARD_H, Colors.alpha(Colors.lerp(0xFF151C29, 0xFF1D283B, e.hover), ca));
+		g.pillOutline(x, y, w, CARD_H, Colors.alpha(e == selected ? Colors.ACCENT : Colors.lerp(0x24FFFFFF, Colors.ACCENT, e.hover * 0.6f), ca));
+		g.vGradient(x + 2, y + 1, w - 4, 30, Colors.alpha(Colors.ACCENT, (0.025f + e.hover * 0.04f) * ca), 0x00FFFFFF);
+		g.pill(x + 10, y + 9, 32, 32, Colors.alpha(0xFF0D1420, ca));
+		int color = Colors.alpha(on ? 0xFFFFFFFF : Colors.MUTED, ca);
+		if (e.xion) g.centeredText(Badge.glyph(false), x + 26, y + 12, 2.8f, color, false);
+		else {
+			ModLogos.Logo logo = ModLogos.get(e.root, e.icon, e.id);
+			if (logo != null) {
+				int lw = logo.width(), lh = logo.height();
+				int dw = Math.round(25 * Math.min(1f, lw / (float) lh)), dh = Math.round(25 * Math.min(1f, lh / (float) lw));
+				g.blit(logo.texture(), x + 26 - dw / 2, y + 25 - dh / 2, dw, dh, 0, 0, lw, lh, lw, lh, color);
+			} else ModIcons.draw(g, kind(e), x + 26, y + 25, 25, color);
+		}
+		g.text(fit(g, e.name, w - 94), x + 50, y + 12, Colors.alpha(on ? Colors.TEXT : Colors.MUTED, ca), false);
+		String ver = e.version == null || e.version.isEmpty() ? e.id : "v" + e.version;
+		g.scaledText(fit(g, ver, (int) ((w - 60) / 0.85f)), x + 50, y + 27, 0.85f, Colors.alpha(Colors.MUTED, ca), false);
+		String description = e.description.isEmpty() ? e.pre ? "Included in your Xion setup" : "Added to your mod collection" : e.description;
+		g.text(fit(g, description, w - 24), x + 12, y + 45, Colors.alpha(Colors.MUTED, ca), false);
+		ModsLayout.Rect toggle = controls.toggle(), settings = controls.settings();
+		if (locked) {
+			g.pillOutline(toggle.x() + 8, toggle.y(), 7, 6, Colors.alpha(Colors.MUTED, ca));
+			g.rounded(toggle.x() + 6, toggle.y() + 5, 11, 7, Colors.alpha(Colors.MUTED, 0.6f * ca));
+		} else {
+			g.pill(toggle.x(), toggle.y(), toggle.w(), toggle.h(), Colors.alpha(Colors.lerp(0xFF343E50, Colors.ACCENT, e.switchAmount), ca));
+			g.pill(toggle.x() + 2 + Math.round(e.switchAmount * 12), toggle.y() + 2, 8, 8, Colors.alpha(on ? 0xFFFFFFFF : 0xFFABB5C7, ca));
+		}
+		int stateColor = pending ? Colors.GOLD : locked ? Colors.ACCENT : on ? Colors.OK : Colors.MUTED;
+		String state = pending ? on ? "Enable next" : "Disable next" : locked ? "Required" : on ? "Active" : "Disabled";
+		g.rounded(x + 12, y + 67, 3, 3, Colors.alpha(stateColor, ca));
+		g.scaledText(fit(g, state, (int) ((w - 112) / 0.85f)), x + 20, y + 65, 0.85f, Colors.alpha(stateColor, ca), false);
+		boolean hasConfig = e.xion || e.config != null, configOver = hasConfig && settings.contains(mx, my) && over;
+		g.pill(settings.x(), settings.y(), settings.w(), settings.h(), Colors.alpha(hasConfig ? configOver ? 0xFF334465 : 0xFF24324B : 0xFF192232, ca));
+		g.pillOutline(settings.x(), settings.y(), settings.w(), settings.h(), Colors.alpha(hasConfig ? Colors.ACCENT : 0x20FFFFFF, (configOver ? 0.65f : 0.2f) * ca));
+		XButton.drawIcon(g, XButton.Icon.GEAR, settings.x() + 8, settings.y() + 5, Colors.alpha(hasConfig ? Colors.ACCENT : Colors.MUTED, ca));
+		g.text(hasConfig ? "Settings" : "No config", settings.x() + 22, settings.y() + 5, Colors.alpha(hasConfig ? Colors.TEXT : Colors.MUTED, ca), false);
+	}
+
+	private static String clean(String s) {
+		return s == null ? "" : s.replaceAll("[\\p{Cntrl}§]+", " ").replaceAll("\\s+", " ").trim();
+	}
+
+	private static String fit(Gfx g, String text, int width) {
+		if (text == null || width <= 0) return "";
+		return g.font.width(text) <= width ? text : g.font.plainSubstrByWidth(text, Math.max(0, width - g.font.width("…"))) + "…";
 	}
 
 	// ---- input ----
 
 	Click click(double mx, double my, int x, int y, int w, int h, double scroll, Screen parent) {
-		if (mx < x || mx >= x + w || my < y || my >= y + h) return Click.NONE;
-		int chipY = y - (int) scroll;
-		if (chipY >= y - 1 && my >= chipY && my < chipY + 14) {
-			int cx = x;
-			for (Filter f : Filter.values()) {
-				int cw = net.minecraft.client.Minecraft.getInstance().font.width(chipLabel(f)) + 14;
-				if (mx >= cx && mx < cx + cw) {
-					if (filter != f) {
-						filter = f;
-						restart();
-					}
-					Compat.click();
-					return Click.FILTER;
-				}
-				cx += cw + 5;
-			}
-			return Click.NONE;
+		pressed = null;
+		if (!new ModsLayout.Rect(x, y, w, h).contains(mx, my)) { searchFocused = false; return Click.NONE; }
+		if (new ModsLayout.Rect(x, y + 26, w, 24).contains(mx, my)) {
+			searchFocused = true;
+			search.focusEnd();
+			if (mx >= x + w - 24 && !search.value().isEmpty()) { search.clear(); restart(); return Click.FILTER; }
+			return Click.HANDLED;
 		}
-
-		int c = cols(w), cw = cardW(w);
-		int iy = y + CHIPS_H - (int) scroll;
-		for (Block b : blocks()) {
-			iy += HEAD_H;
-			for (int i = 0; i < b.entries.size(); i++) {
-				int cx = x + (i % c) * (cw + GAP);
-				int cy = iy + (i / c) * (CARD_H + GAP);
-				if (mx >= cx && mx < cx + cw && my >= cy && my < cy + CARD_H) {
-					Entry e = b.entries.get(i);
-					int fy = cy + CARD_H - 18;
-					int half = (cw - PAD * 2 - 4) / 2;
-					int tx = cx + PAD, sxx = tx + half + 4;
-					if (my >= fy && my < fy + 14) {
-						// Left button toggles, right button opens the mod's own settings.
-						if (mx >= tx && mx < tx + half) {
-							Compat.click();
-							if (e.lockedBy == null) ModToggles.set(e.id, !ModToggles.wanted(e.id, e.loaded), e.loaded);
-							return Click.HANDLED;
-						}
-						if (mx >= sxx && mx < sxx + (cw - PAD - sxx)) return openConfig(e, parent);
-						return Click.NONE;
-					}
-					Compat.click();
-					if (e.lockedBy == null) ModToggles.set(e.id, !ModToggles.wanted(e.id, e.loaded), e.loaded);
-					return Click.HANDLED;
-				}
-			}
-			iy += ((b.entries.size() + c - 1) / c) * (CARD_H + GAP);
+		searchFocused = false;
+		int chipW = (w - 15) / 4;
+		for (Filter f : Filter.values()) if (new ModsLayout.Rect(x + f.ordinal() * (chipW + 5), y + 58, chipW, 16).contains(mx, my)) {
+			filter = f;
+			restart();
+			Compat.click();
+			return Click.FILTER;
+		}
+		if (my < y + ModsLayout.HEADER || my >= y + h - ModsLayout.FOOTER) return Click.NONE;
+		for (Hit hit : hits) {
+			ModsLayout.Controls controls = hit.controls();
+			if (!controls.card().contains(mx, my)) continue;
+			pressed = hit.entry();
+			pressedAction = controls.toggle().contains(mx, my) ? 1 : controls.settings().contains(mx, my) ? 2 : 3;
+			pressedRect = pressedAction == 1 ? controls.toggle() : pressedAction == 2 ? controls.settings() : controls.card();
+			return Click.HANDLED;
 		}
 		return Click.NONE;
+	}
+
+	Click release(double mx, double my, int button, Screen parent) {
+		Entry e = pressed;
+		pressed = null;
+		if (button != 0 || e == null || !pressedRect.contains(mx, my)) return Click.NONE;
+		if (pressedAction == 2) return openConfig(e, parent);
+		Compat.click();
+		if (pressedAction == 1 && e.lockedBy == null) ModToggles.set(e.id, !ModToggles.wanted(e.id, e.loaded), e.loaded);
+		else selected = e;
+		return Click.HANDLED;
+	}
+
+	Click key(int code, int modifiers) {
+		boolean ctrl = (modifiers & 2) != 0;
+		if (ctrl && code == 70) { searchFocused = true; search.selectAll(); return Click.HANDLED; }
+		if (!searchFocused) return Click.NONE;
+		if (code == 256) {
+			if (!search.value().isEmpty()) { search.clear(); restart(); return Click.FILTER; }
+			searchFocused = false;
+			return Click.HANDLED;
+		}
+		if (code == 257 || code == 335) { searchFocused = false; return Click.HANDLED; }
+		String before = search.value();
+		boolean handled;
+		if (ctrl && (code == 67 || code == 88)) {
+			try { net.minecraft.client.Minecraft.getInstance().keyboardHandler.setClipboard(search.selection()); } catch (Exception ignored) {}
+			if (code == 88) search.deleteSelection();
+			handled = true;
+		} else if (ctrl && code == 86) {
+			try { search.insert(net.minecraft.client.Minecraft.getInstance().keyboardHandler.getClipboard()); } catch (Exception ignored) {}
+			handled = true;
+		} else handled = search.key(code, modifiers);
+		if (!before.equals(search.value())) { restart(); return Click.FILTER; }
+		return handled ? Click.HANDLED : Click.NONE;
+	}
+
+	Click character(char c, int modifiers) {
+		if (!searchFocused || Character.isISOControl(c) || c == 167) return Click.NONE;
+		if (search.insert(String.valueOf(c))) { restart(); return Click.FILTER; }
+		return Click.HANDLED;
 	}
 
 	private Click openConfig(Entry e, Screen parent) {

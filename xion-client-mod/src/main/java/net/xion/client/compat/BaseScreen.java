@@ -218,7 +218,13 @@ public abstract class BaseScreen extends Screen {
 	//#if MC >= 12109
 	@Override
 	public boolean keyPressed(KeyEvent e) {
-		return key(e.key(), 0, e.modifiers()) || super.keyPressed(e);
+		//#if MC >= 12111
+		boolean ctrl = e.hasControlDownWithQuirk();
+		//#else
+		boolean ctrl = e.hasControlDown();
+		//#endif
+		int modifiers = (ctrl ? 2 : 0) | (e.hasShiftDown() ? 1 : 0) | (e.hasAltDown() ? 4 : 0);
+		return key(Compat.key(e.key()), 0, modifiers) || super.keyPressed(e);
 	}
 
 	@Override
