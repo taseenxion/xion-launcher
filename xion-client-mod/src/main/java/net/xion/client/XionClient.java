@@ -25,7 +25,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 
 public class XionClient implements ClientModInitializer {
 	public static final String MOD_ID = "xionclient";
-	public static final String VERSION = "1.25.0";
+	public static final String VERSION = "1.26.0";
 	private static final int KEY_RIGHT_SHIFT = 344;
 
 	private static KeyMapping menuKey;
@@ -107,16 +107,25 @@ public class XionClient implements ClientModInitializer {
 		Minecraft mc = Minecraft.getInstance();
 		if (previewTicks == 200) Compat.setScreen(new XionMenuScreen(null, XionMenuScreen.Tab.HUD));
 		else if (previewTicks == 300) Compat.setScreen(new XionMenuScreen(null, XionMenuScreen.Tab.CROSSHAIR));
-		else if (previewTicks == 360) Compat.setScreen(new XionMenuScreen(null, XionMenuScreen.Tab.MODS));
-		else if (previewTicks == 420) Compat.setScreen(new net.xion.client.ui.ModuleSettingsScreen(null,
+		else if (previewTicks == 360) Compat.setScreen(new XionMenuScreen(null, XionMenuScreen.Tab.AI));
+		else if (previewTicks == 365) net.xion.client.feature.XionAI.ask("Give me one short Minecraft survival tip.");
+		else if (previewTicks == 435) System.out.println("[Xion Preview] XION AI " +
+			(net.xion.client.feature.XionAI.busy() ? "is still thinking" :
+				net.xion.client.feature.XionAI.status().isEmpty() ? "answered successfully" : net.xion.client.feature.XionAI.status()));
+		else if (previewTicks == 440) Compat.setScreen(new XionMenuScreen(null, XionMenuScreen.Tab.MODS));
+		else if (previewTicks == 500) Compat.setScreen(new net.xion.client.ui.ModuleSettingsScreen(null,
 			HudManager.MODULES.stream().filter(m -> m.id.equals("fps")).findFirst().orElse(HudManager.MODULES.get(0))));
-		else if (previewTicks == 480) Compat.setScreen(new HudEditorScreen(null));
-		else if (previewTicks == 560) {
+		else if (previewTicks == 560) Compat.setScreen(new HudEditorScreen(null));
+		else if (previewTicks == 640) {
 			if (mc.level != null) Compat.setScreen(new net.xion.client.ui.XionPauseScreen());
 			else Compat.setScreen(net.xion.client.ui.XionTitleScreen.optionsScreen(null));
-		} else if (previewTicks == 660 && mc.level != null) {
+		} else if (previewTicks == 740 && mc.level != null) {
 			Compat.press(Compat.vanillaPause(), "menu.options");
-		} else if (previewTicks == 760) {
+		} else if (previewTicks == 800) {
+			System.out.println("[Xion Preview] XION AI final: " +
+				(net.xion.client.feature.XionAI.busy() ? "still thinking" :
+					net.xion.client.feature.XionAI.status().isEmpty() ? "answered successfully" : net.xion.client.feature.XionAI.status()));
+		} else if (previewTicks == 840) {
 			Compat.setScreen(null);
 			mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_FRONT);
 		}

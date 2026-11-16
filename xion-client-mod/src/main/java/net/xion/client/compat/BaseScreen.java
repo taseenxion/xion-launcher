@@ -16,6 +16,10 @@ import net.minecraft.client.gui.GuiGraphics;
 //#else
 import com.mojang.blaze3d.vertex.PoseStack;
 //#endif
+//#if MC >= 12109
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
+//#endif
 
 /**
  * Base for all Xion screens. Bridges Minecraft's version-specific render and input signatures to
@@ -60,6 +64,15 @@ public abstract class BaseScreen extends Screen {
 	protected void release(double x, double y, int button) {}
 
 	protected void scroll(double x, double y, double amount) {}
+
+	/** Keyboard hooks, bridged below. Return true when consumed. */
+	protected boolean key(int keyCode, int scanCode, int modifiers) {
+		return false;
+	}
+
+	protected boolean character(char codePoint, int modifiers) {
+		return false;
+	}
 
 	//#if MC >= 12002
 	@Override
@@ -199,6 +212,28 @@ public abstract class BaseScreen extends Screen {
 	@Override
 	public boolean mouseReleased(double x, double y, int button) {
 		return handleRelease(x, y, button) || super.mouseReleased(x, y, button);
+	}
+	//#endif
+
+	//#if MC >= 12109
+	@Override
+	public boolean keyPressed(KeyEvent e) {
+		return key(e.key(), 0, e.modifiers()) || super.keyPressed(e);
+	}
+
+	@Override
+	public boolean charTyped(CharacterEvent e) {
+		return character((char) e.codepoint(), 0) || super.charTyped(e);
+	}
+	//#else
+	@Override
+	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+		return key(keyCode, scanCode, modifiers) || super.keyPressed(keyCode, scanCode, modifiers);
+	}
+
+	@Override
+	public boolean charTyped(char codePoint, int modifiers) {
+		return character(codePoint, modifiers) || super.charTyped(codePoint, modifiers);
 	}
 	//#endif
 

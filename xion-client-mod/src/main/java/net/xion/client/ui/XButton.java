@@ -7,7 +7,7 @@ import net.xion.client.compat.Gfx;
 public class XButton {
 	public enum Style { PRIMARY, GLASS, DANGER, TAB, SLAB, ACCENT, TEXT, ICON }
 
-	public enum Icon { NONE, PERSON, PEOPLE, SHIRT, STAR, GRID, GEAR, SLIDERS, POWER }
+	public enum Icon { NONE, PERSON, PEOPLE, SHIRT, STAR, GRID, GEAR, SLIDERS, POWER, TARGET, SPARK }
 
 	public int x, y, w, h;
 	public String label;
@@ -78,10 +78,13 @@ public class XButton {
 			case TEXT -> textColor = Colors.lerp(Colors.MUTED, Colors.TEXT, hover);
 			case TAB -> {
 				if (selected) {
-					g.pill(x, y, w, h, Colors.alpha(Colors.PILL, a));
-					textColor = Colors.ON_PILL;
+					g.pill(x, y, w, h, Colors.alpha(Colors.lerp(Colors.CARD, Colors.ACCENT, 0.24f), a));
+					g.pillOutline(x, y, w, h, Colors.alpha(Colors.ACCENT, 0.55f * a));
+					g.fill(x, y + 3, x + 2, y + h - 3, Colors.alpha(Colors.ACCENT, 0.95f * a));
+					g.rounded(x + w - 7, y + h / 2 - 1, 2, 2, Colors.alpha(Colors.ACCENT, a));
+					textColor = Colors.TEXT;
 				} else {
-					if (hover > 0.02f) g.pill(x, y, w, h, Colors.alpha(0x26FFFFFF, a * hover));
+					if (hover > 0.02f) g.pill(x, y, w, h, Colors.alpha(0x1EFFFFFF, a * hover));
 					textColor = Colors.lerp(Colors.MUTED, Colors.TEXT, hover);
 				}
 			}
@@ -98,6 +101,8 @@ public class XButton {
 			}
 		}
 		int tc = Colors.alpha(textColor, a);
+		int iconTint = style == Style.TAB && selected ? Colors.ACCENT : textColor;
+		int ic = Colors.alpha(iconTint, a);
 		if (style == Style.ICON) {
 			drawIcon(g, icon, x + (w - 9) / 2, y + (h - 9) / 2, tc);
 			return;
@@ -107,7 +112,7 @@ public class XButton {
 		// Content eases a couple of pixels to the right while hovered.
 		int nudge = alignLeft ? Math.round(2 * hover) : 0;
 		int tx = alignLeft ? x + 9 + nudge : x + (w - tw - iconW) / 2;
-		if (icon != Icon.NONE) drawIcon(g, icon, tx, y + (h - 9) / 2, tc);
+		if (icon != Icon.NONE) drawIcon(g, icon, tx, y + (h - 9) / 2, ic);
 		g.text(label, tx + iconW, y + (h - 8) / 2, tc, false);
 	}
 
@@ -159,6 +164,23 @@ public class XButton {
 				g.fill(x + 1, y + 2, x + 2, y + 8, c);
 				g.fill(x + 7, y + 2, x + 8, y + 8, c);
 				g.fill(x + 2, y + 8, x + 7, y + 9, c);
+			}
+			case TARGET -> {
+				g.fill(x + 2, y, x + 7, y + 1, c);
+				g.fill(x + 2, y + 8, x + 7, y + 9, c);
+				g.fill(x, y + 2, x + 1, y + 7, c);
+				g.fill(x + 8, y + 2, x + 9, y + 7, c);
+				g.fill(x + 3, y + 3, x + 6, y + 4, c);
+				g.fill(x + 3, y + 5, x + 6, y + 6, c);
+				g.fill(x + 4, y + 1, x + 5, y + 3, c);
+				g.fill(x + 4, y + 6, x + 5, y + 8, c);
+			}
+			case SPARK -> {
+				g.fill(x + 4, y, x + 5, y + 9, c);
+				g.fill(x, y + 4, x + 9, y + 5, c);
+				g.fill(x + 3, y + 3, x + 6, y + 6, c);
+				g.fill(x + 1, y + 1, x + 2, y + 2, c);
+				g.fill(x + 7, y + 7, x + 8, y + 8, c);
 			}
 			default -> { }
 		}

@@ -73,7 +73,15 @@ public final class Cosmetics {
 			XionConfig.data.capeRev = XionConfig.launcher.capeRev;
 			XionConfig.save();
 		}
-		return XionConfig.data.cape == null ? "" : XionConfig.data.cape;
+		String id = XionConfig.data.cape == null ? "" : XionConfig.data.cape;
+		// Old wings/aura store capes are not part of the launcher set. Drop one if it is still saved,
+		// otherwise it stays "worn" forever and hides every new cape.
+		if (!id.isEmpty() && !capes().isEmpty() && find(id) == null) {
+			XionConfig.data.cape = "";
+			XionConfig.save();
+			return "";
+		}
+		return id;
 	}
 
 	public static void select(String id) {

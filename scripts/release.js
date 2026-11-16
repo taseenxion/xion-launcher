@@ -261,7 +261,18 @@ function syncWebsiteDownloads (websiteDir) {
   }
   for (const file of files) {
     const src = fs.readFileSync(file, 'utf8')
-    const out = src.split(previous).join(ver)
+    // Only touch release URLs, artifact filenames and explicit "v1.2.3" labels. A global version
+    // replacement used to corrupt Minecraft versions such as 1.21.10 in the compatibility ruler.
+    let out = src
+      .split(`releases/download/v${previous}/`).join(`releases/download/v${ver}/`)
+      .split(`v${previous}`).join(`v${ver}`)
+    for (const makeName of [
+      v => `Xion-Launcher-Setup-${v}.exe`,
+      v => `XionLauncher-Portable-${v}.exe`,
+      v => `Xion-Launcher-${v}-linux-x86_64.AppImage`,
+      v => `Xion-Launcher-${v}-linux-amd64.deb`,
+      v => `Xion-Launcher-${v}-linux-x64.tar.gz`
+    ]) out = out.split(makeName(previous)).join(makeName(ver))
     if (out === src) continue
     if (isDryRun) {
       console.log(`[DRY-RUN] Would update ${path.relative(ROOT, file)}: v${previous} -> ${tag}`)

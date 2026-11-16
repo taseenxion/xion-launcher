@@ -127,6 +127,32 @@ public final class Gfx {
 		//#endif
 	}
 
+	/** Clips following draws to a GUI rectangle. Translation is included because scissor ignores poses. */
+	public void scissor(int x1, int y1, int x2, int y2) {
+		x1 = Math.round(x1 + tx);
+		y1 = Math.round(y1 + ty);
+		x2 = Math.round(x2 + tx);
+		y2 = Math.round(y2 + ty);
+		//#if MC >= 12000
+		g.enableScissor(x1, y1, x2, y2);
+		//#else
+		double s = mc.getWindow().getGuiScale();
+		int sx = (int) Math.floor(x1 * s);
+		int sy = (int) Math.floor(mc.getWindow().getHeight() - y2 * s);
+		int sw = (int) Math.ceil((x2 - x1) * s);
+		int sh = (int) Math.ceil((y2 - y1) * s);
+		RenderSystem.enableScissor(sx, sy, Math.max(0, sw), Math.max(0, sh));
+		//#endif
+	}
+
+	public void endScissor() {
+		//#if MC >= 12000
+		g.disableScissor();
+		//#else
+		RenderSystem.disableScissor();
+		//#endif
+	}
+
 	public void text(String s, int x, int y, int color, boolean shadow) {
 		if ((color >>> 24) < 8) return;
 		//#if MC >= 260000

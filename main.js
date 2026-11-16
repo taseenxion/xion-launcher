@@ -110,6 +110,23 @@ app.whenReady().then(() => {
     if (!x || !x.token) return xionPublic()
     return xionSave(x.token, await xionAcc.me(x.token))
   }
+  // Keep the account's public cape in step with the launcher. A local/free/custom cape cannot be
+  // equipped through the account catalog, so explicitly clear that slot instead of leaving an old
+  // wings/aura-era cape published forever. A failed sync never discards the local choice.
+  let capeSync = Promise.resolve()
+  const syncAccountCape = () => {
+    capeSync = capeSync.then(async () => {
+      const s = store.get().settings
+      const x = s.xion || {}
+      if (!x.token) return
+      const id = s.cape || ''
+      const accountItem = id && Array.isArray(x.owned) && x.owned.includes(id) ? id : ''
+      const account = await xionAcc.equip(x.token, 'cape', accountItem)
+      // Ignore an old response if the player signed out or picked something else while it travelled.
+      const latest = store.get().settings
+      if ((latest.xion || {}).token === x.token && (latest.cape || '') === id) xionSave(x.token, account)
+    }).catch(() => {})
+  }
 
   handle('win:min', () => win.minimize())
   handle('win:max', () => (win.isMaximized() ? win.unmaximize() : win.maximize()))
@@ -253,6 +270,7 @@ app.whenReady().then(() => {
     s.cape = cosmetics.saveCustom(s, png)
     s.capeRev = (s.capeRev || 0) + 1
     store.save()
+    syncAccountCape()
     return s.cape
   })
   handle('cosmetics:removeCustom', () => {
@@ -260,6 +278,7 @@ app.whenReady().then(() => {
     if (s.cape === s.customCape) { s.cape = ''; s.capeRev = (s.capeRev || 0) + 1 }
     cosmetics.removeCustom(s)
     store.save()
+    syncAccountCape()
     return s.cape
   })
   handle('cosmetics:set', id => {
@@ -271,6 +290,7 @@ app.whenReady().then(() => {
     s.cape = c ? c.id : ''
     s.capeRev = (s.capeRev || 0) + 1
     store.save()
+    syncAccountCape()
     return s.cape
   })
   handle('themes:set', id => {

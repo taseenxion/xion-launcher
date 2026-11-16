@@ -3,7 +3,7 @@
 	"id": "xionclient",
 	"version": "${version}",
 	"name": "Xion Client",
-	"description": "The in-game side of Xion Launcher: Xion main menu, HUD mods, Right Shift menu with HUD editor, profile & custom skins, Xion badge.",
+	"description": "The in-game side of Xion Launcher: XION AI, redesigned Right Shift menu, HUD mods, capes, profiles and custom skins.",
 	"authors": ["Xion"],
 	"license": "MIT",
 	"icon": "assets/xionclient/icon.png",

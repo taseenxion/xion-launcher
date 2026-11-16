@@ -24,7 +24,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * Nothing about you is sent: this only reads the public list.
  */
 public final class StoreCosmetics {
-	public static final String STORE = "https://xion-store.vercel.app";
+	/** The account-backed wear list. The old store list can contain cosmetics equipped years ago. */
+	public static final String ACCOUNT = "https://xionx.vercel.app";
+	/** New launcher/account capes live here; old shop-only textures fall back to LEGACY. */
+	public static final String ASSETS = ACCOUNT + "/assets/capes/";
+	public static final String LEGACY = "https://xion-store.vercel.app/assets/capes/";
 	private static final long FETCH_EVERY = 60_000L;
 	private static final long FRAME_MS = 110;
 	private static final Object LOADING = new Object(), MISSING = new Object();
@@ -60,15 +64,27 @@ public final class StoreCosmetics {
 	}
 
 	private static void fetchWear() throws Exception {
-		byte[] body = get(STORE + "/api/wear");
+		byte[] body = get(ACCOUNT + "/api/cosmetics?r=wear");
 		if (body == null) return;
 		JsonObject root = JsonParser.parseString(new String(body, StandardCharsets.UTF_8)).getAsJsonObject();
 		Map<String, Integer> f = new ConcurrentHashMap<>();
-		if (root.has("capes")) for (Map.Entry<String, JsonElement> e : root.getAsJsonObject("capes").entrySet()) f.put(e.getKey(), e.getValue().getAsInt());
+		if (root.has("capes") && root.get("capes").isJsonObject()) {
+			for (Map.Entry<String, JsonElement> e : root.getAsJsonObject("capes").entrySet()) {
+				try {
+					int n = e.getValue().getAsInt();
+					if (n > 0 && n <= 64) f.put(e.getKey(), n);
+				} catch (Exception ignored) {
+				}
+			}
+		}
 		Map<String, String> c = new ConcurrentHashMap<>();
-		if (root.has("players")) for (Map.Entry<String, JsonElement> e : root.getAsJsonObject("players").entrySet()) {
+		if (root.has("players") && root.get("players").isJsonObject()) for (Map.Entry<String, JsonElement> e : root.getAsJsonObject("players").entrySet()) {
+			if (!e.getValue().isJsonObject()) continue;
 			JsonObject p = e.getValue().getAsJsonObject();
-			if (p.has("cape") && f.containsKey(p.get("cape").getAsString())) c.put(e.getKey().toLowerCase(), p.get("cape").getAsString());
+			if (p.has("cape") && p.get("cape").isJsonPrimitive()) {
+				String id = p.get("cape").getAsString();
+				if (f.containsKey(id)) c.put(e.getKey().toLowerCase(java.util.Locale.ROOT), id);
+			}
 		}
 		frames = f;
 		capes = c;
@@ -77,7 +93,7 @@ public final class StoreCosmetics {
 	/** The store cape texture for this player right now (animated capes cycle frames), or null. */
 	public static Object capeFor(String name) {
 		if (name == null) return null;
-		String id = capes.get(name.toLowerCase());
+		String id = capes.get(name.toLowerCase(java.util.Locale.ROOT));
 		if (id == null) return null;
 		int n = frames.getOrDefault(id, 1);
 		String file = n > 1 ? id + "_" + (System.currentTimeMillis() / FRAME_MS) % n : id;
@@ -97,33 +113,45 @@ public final class StoreCosmetics {
 		Thread t = new Thread(() -> {
 			byte[] png = null;
 			try {
-				png = get(STORE + "/assets/capes/" + file + ".png");
+				png = get(ASSETS + file + ".png");
+				// Halloween/winter and other old shop capes are intentionally retained for
+				// players who bought them, but those PNGs only exist on the legacy host.
+				if (png == null) png = get(LEGACY + file + ".png");
 			} catch (Exception ignored) {
 			}
 			final byte[] data = png;
-			Minecraft.getInstance().execute(() -> register(file, data));
+			try {
+				Minecraft.getInstance().execute(() -> register(file, data));
+			} catch (Exception e) {
+				textures.put(file, MISSING);
+				fetching.remove(file);
+			}
 		}, "Xion-Store-Tex");
 		t.setDaemon(true);
 		t.start();
 	}
 
 	private static void register(String file, byte[] png) {
-		if (png == null) {
-			textures.put(file, MISSING);
-			return;
-		}
-		try (InputStream in = new ByteArrayInputStream(png)) {
-			NativeImage img = NativeImage.read(in);
-			//#if MC >= 12105
-			DynamicTexture tex = new DynamicTexture(() -> "xion_store_cape_" + file, img);
-			//#else
-			DynamicTexture tex = new DynamicTexture(img);
-			//#endif
-			Object id = Ids.of("xionclient", "dynamic/store_cape/" + file);
-			Minecraft.getInstance().getTextureManager().register(Ids.cast(id), tex);
-			textures.put(file, id);
+		try {
+			if (png == null) {
+				textures.put(file, MISSING);
+				return;
+			}
+			try (InputStream in = new ByteArrayInputStream(png)) {
+				NativeImage img = NativeImage.read(in);
+				//#if MC >= 12105
+				DynamicTexture tex = new DynamicTexture(() -> "xion_store_cape_" + file, img);
+				//#else
+				DynamicTexture tex = new DynamicTexture(img);
+				//#endif
+				Object id = Ids.of("xionclient", "dynamic/store_cape/" + file);
+				Minecraft.getInstance().getTextureManager().register(Ids.cast(id), tex);
+				textures.put(file, id);
+			}
 		} catch (Exception e) {
 			textures.put(file, MISSING);
+		} finally {
+			fetching.remove(file);
 		}
 	}
 

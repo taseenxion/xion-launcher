@@ -22,7 +22,7 @@ import net.minecraft.resources.ResourceLocation;
 
 /**
  * Swaps your own player's skin for the one picked in Xion Launcher, and adds capes (also used for elytra):
- * the Xion Store cape of any player who wears one, otherwise your own Xion cape on you.
+ * your own launcher/in-game pick always wins on you; other players use the public account cape.
  */
 @Mixin(AbstractClientPlayer.class)
 public abstract class SkinMixin {
@@ -35,9 +35,10 @@ public abstract class SkinMixin {
 	}
 
 	private Object xion$cape() {
-		Object store = StoreCosmetics.capeFor(((AbstractClientPlayer) (Object) this).getScoreboardName());
-		if (store != null) return store;
-		return xion$me() ? Cosmetics.capeTexture() : null;
+		// This must be unconditional for self, including "none". A stale cape left in the legacy
+		// wings/aura store used to override every new launcher cape and could never be removed.
+		if (xion$me()) return Cosmetics.capeTexture();
+		return StoreCosmetics.capeFor(((AbstractClientPlayer) (Object) this).getScoreboardName());
 	}
 
 	//#if MC >= 12109

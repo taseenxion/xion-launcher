@@ -69,6 +69,8 @@ public final class XionConfig {
 		/** Cape picked in the Cosmetics tab ("" = none) and the launcher pick it last took over. */
 		public String cape = "";
 		public int capeRev = 0;
+		/** XION AI service endpoint. Kept configurable for development and self-hosting. */
+		public String aiEndpoint = net.xion.client.feature.XionAI.DEFAULT_ENDPOINT;
 		/** PvP mode: set once the PvP HUD layout has been applied to this game folder. */
 		public boolean pvpSetup = false;
 		public Map<String, ModuleState> modules = new LinkedHashMap<>();
@@ -134,6 +136,13 @@ public final class XionConfig {
 			}
 		} catch (Exception ignored) {
 		}
+		// A hand-edited or half-written hand-off file must never crash the client at startup.
+		if (launcher == null) launcher = new Launcher();
+		if (launcher.theme == null) launcher.theme = new Theme();
+		if (launcher.ownedCapes == null) launcher.ownedCapes = new ArrayList<>();
+		if (launcher.perfMode == null) launcher.perfMode = "boost";
+		if (launcher.account == null) launcher.account = "offline";
+		if (data.aiEndpoint == null || data.aiEndpoint.isEmpty()) data.aiEndpoint = net.xion.client.feature.XionAI.DEFAULT_ENDPOINT;
 	}
 
 	public static void save() {

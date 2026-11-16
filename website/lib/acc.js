@@ -148,7 +148,9 @@ async function publishPlayer (a) {
   p.equipped = { ...(p.equipped || {}) }
   for (const s of SLOTS) {
     if (a.equipped && a.equipped[s] && p.owned.includes(a.equipped[s])) p.equipped[s] = a.equipped[s]
-    else if (p.equipped[s] && !p.owned.includes(p.equipped[s])) delete p.equipped[s]
+    // The account is authoritative once linked. Clearing a slot must also clear any old locker
+    // selection (especially wings/aura-era capes) even when the player still owns that item.
+    else delete p.equipped[s]
   }
   await S.savePlayer(p)
   await S.updateWear(p)
