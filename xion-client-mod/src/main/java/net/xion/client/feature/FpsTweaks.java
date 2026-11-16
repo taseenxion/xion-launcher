@@ -5,16 +5,21 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
 import net.xion.client.XionConfig;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+
 /**
- * OG-style FPS tweaks from the FPS tab of the Xion menu. While a tweak is on it forces its vanilla
- * option to the fast setting (and back to the vanilla default when switched off), so players see
- * exactly what changed. Applied once whenever the toggle set changes — vanilla options stay
- * hand-editable otherwise. The Boost/Turbo presets from Xion Launcher (Performance) apply first
- * at launch, these stack on top.
+ * FPS overrides from the Xion menu, applied after the launcher's Boost/Turbo preset. Disabled
+ * tweaks leave vanilla options alone; turning off an override restores its previous session value.
+ * Unlimited always disables VSync as well as setting Minecraft's uncapped frame-limit sentinel.
  */
 public final class FpsTweaks {
 	/** Last applied toggle set; rebuilt whenever it changes so the options are written once. */
 	private static String applied;
+	private static final Map<String, Runnable> restore = new HashMap<>();
 
 	private FpsTweaks() {}
 
@@ -32,70 +37,82 @@ public final class FpsTweaks {
 			+ (d.fpsUnlimited ? "1" : "0") + (d.fpsNoChunkFade ? "1" : "0") + ":" + d.fpsCap;
 	}
 
-	private static boolean any() {
+	/** Either UI control can request unlimited frames; both must also turn VSync off. */
+	public static boolean unlimited() {
 		XionConfig.Data d = XionConfig.data;
-		return d.fpsNoClouds || d.fpsNoParticles || d.fpsNoEntityShadows || d.fpsNoSmoothLight || d.fpsNoMipmap
-			|| d.fpsLowEntityDistance || d.fpsLowBiomeBlend || d.fpsNoVsync || d.fpsOpaqueLeaves || d.fpsNoWeather
-			|| d.fpsLowRenderDistance || d.fpsLowSimDistance || d.fpsUnlimited || d.fpsNoChunkFade
-			|| d.fpsCap != 0;
+		return d.fpsUnlimited || d.fpsCap >= 260;
+	}
+
+	public static boolean vsyncOff() {
+		return XionConfig.data.fpsNoVsync || unlimited();
 	}
 
 	public static void tick(Minecraft mc) {
+		if (mc.options == null) return;
 		String s = state();
 		if (s.equals(applied)) return;
+		apply(mc.options);
 		applied = s;
-		if (mc.options != null && any()) apply(mc.options);
+	}
+
+	private static <T> boolean override(String id, boolean on, Supplier<T> get, Consumer<T> set, T value) {
+		if (!on) {
+			Runnable reset = restore.remove(id);
+			if (reset == null) return false;
+			reset.run();
+			return true;
+		}
+		if (!restore.containsKey(id)) {
+			T before = get.get();
+			restore.put(id, () -> set.accept(before));
+		}
+		if (Objects.equals(get.get(), value)) return false;
+		set.accept(value);
+		return true;
 	}
 
 	private static void apply(Options o) {
 		XionConfig.Data d = XionConfig.data;
+		int cap = unlimited() ? 260 : Math.max(0, Math.min(260, d.fpsCap));
+		boolean changed = false;
 		//#if MC >= 11900
-		o.cloudStatus().set(d.fpsNoClouds ? CloudStatus.OFF : CloudStatus.FANCY);
-		o.entityShadows().set(!d.fpsNoEntityShadows);
-		o.enableVsync().set(!d.fpsNoVsync);
-		o.entityDistanceScaling().set(d.fpsLowEntityDistance ? 0.5 : 1.0);
-		o.biomeBlendRadius().set(d.fpsLowBiomeBlend ? 0 : 2);
-		if (d.fpsCap != 0) o.framerateLimit().set(d.fpsCap);
-		if (d.fpsUnlimited) o.framerateLimit().set(260);
-		// Distances: capped while on, restored to a sane value when switched off.
-		if (d.fpsLowRenderDistance) o.renderDistance().set(Math.min(o.renderDistance().get(), 6));
-		else if (o.renderDistance().get() < 8) o.renderDistance().set(12);
-		if (d.fpsLowSimDistance) o.simulationDistance().set(Math.min(o.simulationDistance().get(), 5));
-		else if (o.simulationDistance().get() < 8) o.simulationDistance().set(10);
+		changed |= override("clouds", d.fpsNoClouds, o.cloudStatus()::get, o.cloudStatus()::set, CloudStatus.OFF);
+		changed |= override("entity-shadows", d.fpsNoEntityShadows, o.entityShadows()::get, o.entityShadows()::set, false);
+		changed |= override("vsync", vsyncOff(), o.enableVsync()::get, o.enableVsync()::set, false);
+		changed |= override("entity-distance", d.fpsLowEntityDistance, o.entityDistanceScaling()::get, o.entityDistanceScaling()::set, 0.5);
+		changed |= override("biome-blend", d.fpsLowBiomeBlend, o.biomeBlendRadius()::get, o.biomeBlendRadius()::set, 0);
+		changed |= override("frame-limit", cap > 0, o.framerateLimit()::get, o.framerateLimit()::set, cap);
+		changed |= override("render-distance", d.fpsLowRenderDistance, o.renderDistance()::get, o.renderDistance()::set, Math.min(o.renderDistance().get(), 6));
+		changed |= override("simulation-distance", d.fpsLowSimDistance, o.simulationDistance()::get, o.simulationDistance()::set, Math.min(o.simulationDistance().get(), 5));
 		//#if MC >= 11903
-		o.ambientOcclusion().set(!d.fpsNoSmoothLight);
+		changed |= override("smooth-lighting", d.fpsNoSmoothLight, o.ambientOcclusion()::get, o.ambientOcclusion()::set, false);
 		//#else
-		o.ambientOcclusion().set(d.fpsNoSmoothLight ? net.minecraft.client.AmbientOcclusionStatus.OFF : net.minecraft.client.AmbientOcclusionStatus.MAX);
+		changed |= override("smooth-lighting", d.fpsNoSmoothLight, o.ambientOcclusion()::get, o.ambientOcclusion()::set, net.minecraft.client.AmbientOcclusionStatus.OFF);
 		//#endif
-		o.mipmapLevels().set(d.fpsNoMipmap ? 0 : 4);
+		changed |= override("mipmaps", d.fpsNoMipmap, o.mipmapLevels()::get, o.mipmapLevels()::set, 0);
 		//#if MC >= 12102
-		o.particles().set(d.fpsNoParticles ? net.minecraft.server.level.ParticleStatus.MINIMAL : net.minecraft.server.level.ParticleStatus.ALL);
+		changed |= override("particles", d.fpsNoParticles, o.particles()::get, o.particles()::set, net.minecraft.server.level.ParticleStatus.MINIMAL);
 		//#else
-		o.particles().set(d.fpsNoParticles ? net.minecraft.client.ParticleStatus.MINIMAL : net.minecraft.client.ParticleStatus.ALL);
+		changed |= override("particles", d.fpsNoParticles, o.particles()::get, o.particles()::set, net.minecraft.client.ParticleStatus.MINIMAL);
 		//#endif
 		//#if MC >= 12111
-		o.cutoutLeaves().set(!d.fpsOpaqueLeaves);
-		o.chunkSectionFadeInTime().set(d.fpsNoChunkFade ? 0.0 : 1.0);
-		// Only touch the weather distance when needed, so a player's own choice survives.
-		if (d.fpsNoWeather) o.weatherRadius().set(0);
-		else if (o.weatherRadius().get() < 1) o.weatherRadius().set(4);
+		changed |= override("leaves", d.fpsOpaqueLeaves, o.cutoutLeaves()::get, o.cutoutLeaves()::set, false);
+		changed |= override("chunk-fade", d.fpsNoChunkFade, o.chunkSectionFadeInTime()::get, o.chunkSectionFadeInTime()::set, 0.0);
+		changed |= override("weather", d.fpsNoWeather, o.weatherRadius()::get, o.weatherRadius()::set, 0);
 		//#endif
 		//#else
-		o.renderClouds = d.fpsNoClouds ? CloudStatus.OFF : CloudStatus.FANCY;
-		o.entityShadows = !d.fpsNoEntityShadows;
-		o.enableVsync = !d.fpsNoVsync;
-		o.entityDistanceScaling = d.fpsLowEntityDistance ? 0.5f : 1.0f;
-		o.biomeBlendRadius = d.fpsLowBiomeBlend ? 0 : 2;
-		if (d.fpsCap != 0) o.framerateLimit = d.fpsCap;
-		if (d.fpsUnlimited) o.framerateLimit = 260;
-		if (d.fpsLowRenderDistance) o.renderDistance = Math.min(o.renderDistance, 6);
-		else if (o.renderDistance < 8) o.renderDistance = 12;
-		if (d.fpsLowSimDistance) o.simulationDistance = Math.min(o.simulationDistance, 5);
-		else if (o.simulationDistance < 8) o.simulationDistance = 10;
-		o.ambientOcclusion = d.fpsNoSmoothLight ? net.minecraft.client.AmbientOcclusionStatus.OFF : net.minecraft.client.AmbientOcclusionStatus.MAX;
-		o.mipmapLevels = d.fpsNoMipmap ? 0 : 4;
-		o.particles = d.fpsNoParticles ? net.minecraft.client.ParticleStatus.MINIMAL : net.minecraft.client.ParticleStatus.ALL;
+		changed |= override("clouds", d.fpsNoClouds, () -> o.renderClouds, v -> o.renderClouds = v, CloudStatus.OFF);
+		changed |= override("entity-shadows", d.fpsNoEntityShadows, () -> o.entityShadows, v -> o.entityShadows = v, false);
+		changed |= override("vsync", vsyncOff(), () -> o.enableVsync, v -> o.enableVsync = v, false);
+		changed |= override("entity-distance", d.fpsLowEntityDistance, () -> o.entityDistanceScaling, v -> o.entityDistanceScaling = v, 0.5f);
+		changed |= override("biome-blend", d.fpsLowBiomeBlend, () -> o.biomeBlendRadius, v -> o.biomeBlendRadius = v, 0);
+		changed |= override("frame-limit", cap > 0, () -> o.framerateLimit, v -> o.framerateLimit = v, cap);
+		changed |= override("render-distance", d.fpsLowRenderDistance, () -> o.renderDistance, v -> o.renderDistance = v, Math.min(o.renderDistance, 6));
+		changed |= override("simulation-distance", d.fpsLowSimDistance, () -> o.simulationDistance, v -> o.simulationDistance = v, Math.min(o.simulationDistance, 5));
+		changed |= override("smooth-lighting", d.fpsNoSmoothLight, () -> o.ambientOcclusion, v -> o.ambientOcclusion = v, net.minecraft.client.AmbientOcclusionStatus.OFF);
+		changed |= override("mipmaps", d.fpsNoMipmap, () -> o.mipmapLevels, v -> o.mipmapLevels = v, 0);
+		changed |= override("particles", d.fpsNoParticles, () -> o.particles, v -> o.particles = v, net.minecraft.client.ParticleStatus.MINIMAL);
 		//#endif
-		o.save();
+		if (changed) o.save();
 	}
 }

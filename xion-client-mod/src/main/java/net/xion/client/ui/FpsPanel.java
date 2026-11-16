@@ -12,9 +12,8 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
 /**
- * "FPS" tab of the Xion menu: the classic OG client tweaks. Each row forces one vanilla option to
- * its fast setting while on (and back to the vanilla default when switched off), plus a frame rate
- * cap cycler. Everything applies the moment it is clicked and is saved for every launch.
+ * "FPS" tab of the Xion menu: independent overrides plus an explicit frame-rate selector. Unlimited
+ * disables VSync, and switching to a finite cap cancels Unlimited rather than silently ignoring it.
  */
 final class FpsPanel {
 	private static final int ROW_H = 22, GAP = 4, HEAD_H = 34, CAP_H = 22, NOTE_H = 24;
@@ -40,14 +39,17 @@ final class FpsPanel {
 			() -> XionConfig.data.fpsLowEntityDistance, v -> XionConfig.data.fpsLowEntityDistance = v));
 		rows.add(new Row("Low biome blend", "Grass colours snap instead of blending",
 			() -> XionConfig.data.fpsLowBiomeBlend, v -> XionConfig.data.fpsLowBiomeBlend = v));
-		rows.add(new Row("VSync off", "Unlocks the frame rate (use the cap below)",
-			() -> XionConfig.data.fpsNoVsync, v -> XionConfig.data.fpsNoVsync = v));
+		rows.add(new Row("VSync off", "Automatic with Unlimited; removes the monitor refresh cap",
+			FpsTweaks::vsyncOff, v -> { if (!FpsTweaks.unlimited()) XionConfig.data.fpsNoVsync = v; }));
 		rows.add(new Row("Render distance 6", "Draws 6 chunks instead of your usual distance",
 			() -> XionConfig.data.fpsLowRenderDistance, v -> XionConfig.data.fpsLowRenderDistance = v));
 		rows.add(new Row("Simulation distance 5", "Mobs and ticks only near you",
 			() -> XionConfig.data.fpsLowSimDistance, v -> XionConfig.data.fpsLowSimDistance = v));
-		rows.add(new Row("Unlimited FPS", "Frame cap 260, ignores the cap below",
-			() -> XionConfig.data.fpsUnlimited, v -> XionConfig.data.fpsUnlimited = v));
+		rows.add(new Row("Unlimited FPS", "Uncapped rendering; automatically turns VSync off",
+			FpsTweaks::unlimited, v -> {
+				XionConfig.data.fpsUnlimited = v;
+				if (!v && XionConfig.data.fpsCap >= 260) XionConfig.data.fpsCap = 0;
+			}));
 		//#if MC >= 12111
 		rows.add(new Row("No chunk fade-in", "Chunks appear at once instead of fading",
 			() -> XionConfig.data.fpsNoChunkFade, v -> XionConfig.data.fpsNoChunkFade = v));
@@ -64,7 +66,8 @@ final class FpsPanel {
 
 	void draw(Gfx g, int x, int y, int w, int h, double scroll, int mx, int my, float a) {
 		g.text("FPS Boost", x, y + 2, Colors.alpha(Colors.TEXT, a), false);
-		g.text(g.font.plainSubstrByWidth("OG game tweaks · instant · saved for every launch", w), x, y + 13, Colors.alpha(Colors.MUTED, a), false);
+		String hint = FpsTweaks.unlimited() ? "Unlimited FPS · VSync off · no monitor refresh cap" : "Instant tweaks · your other video settings stay unchanged";
+		g.text(g.font.plainSubstrByWidth(hint, w), x, y + 13, Colors.alpha(Colors.MUTED, a), false);
 
 		int ry = y + HEAD_H - (int) scroll;
 		for (Row r : rows) {
@@ -87,7 +90,7 @@ final class FpsPanel {
 		ry += CAP_H + GAP;
 
 		if (ry > y + HEAD_H - 12 && ry < y + h + 1) {
-			g.text(g.font.plainSubstrByWidth("Boost / Turbo presets from Xion Launcher apply on top at launch.", w), x, ry + 4, Colors.alpha(Colors.MUTED, a), false);
+			g.text(g.font.plainSubstrByWidth("These overrides apply after the launcher's Boost / Turbo preset.", w), x, ry + 4, Colors.alpha(Colors.MUTED, a), false);
 		}
 	}
 
@@ -104,7 +107,7 @@ final class FpsPanel {
 	}
 
 	private static String capLabel() {
-		int c = XionConfig.data.fpsCap;
+		int c = FpsTweaks.unlimited() ? 260 : XionConfig.data.fpsCap;
 		if (c == 0) return "Game default";
 		if (c == 260) return "Unlimited";
 		return c + " fps";
@@ -124,8 +127,10 @@ final class FpsPanel {
 		}
 		if (mx >= x && mx < x + w && my >= ry && my < ry + CAP_H) {
 			int i = 0;
-			for (int k = 0; k < CAPS.length; k++) if (CAPS[k] == XionConfig.data.fpsCap) i = k + 1;
+			int cap = FpsTweaks.unlimited() ? 260 : XionConfig.data.fpsCap;
+			for (int k = 0; k < CAPS.length; k++) if (CAPS[k] == cap) i = k + 1;
 			XionConfig.data.fpsCap = i >= CAPS.length ? 0 : CAPS[i];
+			XionConfig.data.fpsUnlimited = XionConfig.data.fpsCap == 260;
 			XionConfig.save();
 			FpsTweaks.refresh();
 			Compat.click();
