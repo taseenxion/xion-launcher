@@ -127,7 +127,7 @@
   })
 
   /* ---------- A: version ruler ---------- */
-  const VERSIONS = ['1.18', '1.18.1', '1.18.2', '1.19', '1.19.1', '1.19.2', '1.19.3', '1.19.4', '1.20', '1.20.1', '1.20.2', '1.20.3', '1.20.4', '1.20.5', '1.20.6', '1.21', '1.24.0', '1.21.2', '1.21.3', '1.21.4', '1.21.5', '1.21.6', '1.21.7', '1.21.8', '1.21.9', '1.24.00', '1.24.01', '26.1', '26.1.1', '26.1.2', '26.2', '26.3']
+  const VERSIONS = ['1.18', '1.18.1', '1.18.2', '1.19', '1.19.1', '1.19.2', '1.19.3', '1.19.4', '1.20', '1.20.1', '1.20.2', '1.20.3', '1.20.4', '1.20.5', '1.20.6', '1.21', '1.25.0', '1.21.2', '1.21.3', '1.21.4', '1.21.5', '1.21.6', '1.21.7', '1.21.8', '1.21.9', '1.25.00', '1.25.01', '26.1', '26.1.1', '26.1.2', '26.2', '26.3']
   const rt = $('#rulerTrack')
   const ticks = VERSIONS.map((v, i) => `<div class="tickv ${v.split('.').length === 2 ? 'major' : ''} ${i === VERSIONS.length - 1 ? 'latest' : ''}">${v}</div>`).join('')
   rt.innerHTML = ticks + ticks
@@ -272,7 +272,7 @@
     ['', '[paper] Taseen joined the game', 0]
   ], true), { once: true })
   $('.c-heal').addEventListener('reveal', () => type($('#termHeal'), [
-    ['', '[xion] Launching 1.24.01 (Fabric)…', 600],
+    ['', '[xion] Launching 1.25.01 (Fabric)…', 600],
     ['r', '[game] Mixin apply failed: oldmod.mixins.json', 700],
     ['y', '[xion] Crash traced to "oldmod" — disabling', 600],
     ['y', '[xion] Missing dependency "cloth-config" — installing', 700],
@@ -288,12 +288,12 @@
   $$('a[download]').forEach(a => a.addEventListener('click', () => toast('Download starting…')))
 
   /* ---------- primary download follows the visitor's OS ---------- */
-  const RELEASES = 'https://github.com/taseenxion/xion-launcher/releases/download/v1.24.0/'
+  const RELEASES = 'https://github.com/taseenxion/xion-launcher/releases/download/v1.25.0/'
   const platform = ((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || navigator.userAgent || '')
   const BUILD = {
-    windows: { href: RELEASES + 'Xion-Launcher-Setup-1.24.0.exe', label: 'Download for Windows', meta: 'Installer &middot; 141 MB &middot; v1.24.0' },
-    linux: { href: RELEASES + 'Xion-Launcher-1.24.0-linux-x86_64.AppImage', label: 'Download for Linux', meta: 'AppImage &middot; 146 MB &middot; v1.24.0' },
-    mac: { href: RELEASES + 'Xion-Launcher-Setup-1.24.0.exe', label: 'Download for Windows', meta: 'Windows and Linux builds &middot; macOS not yet' }
+    windows: { href: RELEASES + 'Xion-Launcher-Setup-1.25.0.exe', label: 'Download for Windows', meta: 'Installer &middot; 141 MB &middot; v1.25.0' },
+    linux: { href: RELEASES + 'Xion-Launcher-1.25.0-linux-x86_64.AppImage', label: 'Download for Linux', meta: 'AppImage &middot; 146 MB &middot; v1.25.0' },
+    mac: { href: RELEASES + 'Xion-Launcher-Setup-1.25.0.exe', label: 'Download for Windows', meta: 'Windows and Linux builds &middot; macOS not yet' }
   }
   const build = BUILD[/linux/i.test(platform) ? 'linux' : /mac|iphone|ipad/i.test(platform) ? 'mac' : 'windows']
   $$('[data-os-dl]').forEach(a => {
