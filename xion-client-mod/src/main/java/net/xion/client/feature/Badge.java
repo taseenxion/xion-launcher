@@ -9,7 +9,7 @@ import net.xion.client.compat.Compat;
 import java.util.UUID;
 
 /**
- * Animated Xion shield badges beside player names: blue for free players, crowned gold for Xion+.
+ * Animated brush-X badges beside player names: moonlight silver for free players, gold for Xion+.
  * Frames are preloaded bitmap-font glyphs, not per-frame texture uploads. Every frame has the same
  * advance so names never jump sideways. The old glyphs remain recognized for compatibility.
  */

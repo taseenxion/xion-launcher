@@ -72,7 +72,7 @@ body:not([data-page="play"]) .layer, body:not([data-page="play"]) .fog i { anima
 .titlebar { position: relative; z-index: 25; height: 64px; flex-shrink: 0; display: flex; align-items: center; gap: 12px; padding: 0 8px 0 24px; -webkit-app-region: drag; }
 .titlebar button, .account-chip { -webkit-app-region: no-drag; }
 .brand { display: flex; align-items: center; gap: 11px; margin-right: 18px; }
-.brand-logo { width: 26px; height: 26px; stroke: none; filter: drop-shadow(0 2px 10px color-mix(in srgb, var(--accent) 25%, transparent)); }
+.brand-logo { display: block; width: 34px; height: 34px; object-fit: contain; filter: drop-shadow(0 2px 12px rgba(150,190,255,.24)); }
 .brand-text { display: flex; align-items: baseline; gap: 10px; white-space: nowrap; }
 .brand-text b { font: 500 19px var(--display); letter-spacing: .4px; }
 .sig { font: 400 19px 'Allura', 'Segoe Script', cursive; color: rgba(214,224,245,.62); letter-spacing: .3px; }
@@ -493,7 +493,7 @@ input[type=range]::-webkit-slider-thumb:hover { box-shadow: 0 2px 10px rgba(0,0,
 /* ---------- Splash ---------- */
 .splash { position: fixed; inset: 0; z-index: 500; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: linear-gradient(rgba(6,8,12,.72), rgba(6,8,12,.92)), var(--img-full, url(bg/nightfall/full.jpg)) center bottom / cover; transition: opacity .9s var(--ease), visibility .9s; }
 .splash.gone { opacity: 0; visibility: hidden; }
-.splash-logo { width: 54px; height: 54px; stroke: none; margin-bottom: 14px; animation: rise 1s var(--ease) both; }
+.splash-logo { display: block; width: 72px; height: 72px; object-fit: contain; margin-bottom: 14px; filter: drop-shadow(0 6px 28px rgba(150,190,255,.22)); animation: rise 1s var(--ease) both; }
 .splash-name { font: 200 34px var(--display); letter-spacing: 10px; padding-left: 10px; animation: rise 1s var(--ease) .1s both; }
 .splash-sig { font: 400 22px 'Allura', cursive; color: rgba(214,224,245,.65); animation: rise 1s var(--ease) .2s both; }
 .splash-bar { width: 120px; height: 2px; margin-top: 22px; border-radius: 2px; background: rgba(255,255,255,.08); overflow: hidden; }

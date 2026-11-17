@@ -1,6 +1,6 @@
 // First-run intro: a short animated welcome that sets up the account and the Xion Pack.
 // Shown once (settings.onboarded); app.js fires 'xion:booted' when the launcher state is loaded.
-// Built from the launcher's own pieces (.btn, .toggle, .eyebrow, .pill, #xlogo).
+// Built from the launcher's own pieces (.btn, .toggle, .eyebrow, .pill).
   // Uses app.js globals: state, api, xion, renderAccounts, saveSettings, toast, esc.
 ;(function () {
   const STEPS = ['welcome', 'account', 'pack', 'ready']
@@ -16,7 +16,7 @@
     <button class="intro-skip" data-skip>Skip</button>
 
     <section class="intro-step" data-step="welcome">
-      <svg class="i-logo"><use href="#xlogo"/></svg>
+      <img class="i-logo" src="logo.png" alt="">
       <div class="i-sig">Welcome to</div>
       <h1 class="i-name">${'XION'.split('').map((c, i) => `<span style="--i:${i}">${c}</span>`).join('')}</h1>
       <p class="i-sub">Let's get you set up. It takes a few seconds.</p>

@@ -25,7 +25,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 
 public class XionClient implements ClientModInitializer {
 	public static final String MOD_ID = "xionclient";
-	public static final String VERSION = "1.27.0";
+	public static final String VERSION = "1.27.1";
 	private static final int KEY_RIGHT_SHIFT = 344;
 
 	private static KeyMapping menuKey;

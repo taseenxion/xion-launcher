@@ -34,7 +34,7 @@ body.intro-open .app { opacity: 0; pointer-events: none; }
 .i-go { min-width: 168px; height: 44px; }
 
 /* welcome */
-.i-logo { width: 54px; height: 54px; stroke: none; margin-bottom: 18px; filter: drop-shadow(0 4px 22px color-mix(in srgb, var(--accent) 25%, transparent)); }
+.i-logo { display: block; width: 72px; height: 72px; object-fit: contain; margin-bottom: 18px; filter: drop-shadow(0 5px 26px rgba(150,190,255,.24)); }
 .i-sig { font: 400 30px 'Allura', cursive; color: rgba(214,224,245,.7); line-height: 1; }
 .i-name { margin: 6px 0 14px; padding-left: 16px; font: 200 64px/1 var(--display); letter-spacing: 16px; color: #fff; }
 .i-name span { display: inline-block; opacity: 0; filter: blur(8px); transform: translateY(8px); }
