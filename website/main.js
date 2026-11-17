@@ -330,7 +330,7 @@
     const tint = img => {
       try {
         const c = document.createElement('canvas'); c.width = 8; c.height = 8
-        const x = c.getContext('2d'); x.drawImage(img, 4, 4, 40, 64, 0, 0, 8, 8)
+        const x = c.getContext('2d'), scale = img.width / 64; x.drawImage(img, scale, scale, 10 * scale, 16 * scale, 0, 0, 8, 8)
         const d = x.getImageData(0, 0, 8, 8).data; let r = 0, g = 0, b = 0
         for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2] }
         const n = d.length / 4, k = 255 / Math.max(60, Math.max(r, g, b) / n)
@@ -389,9 +389,10 @@
       spin()
       setAnim(cos.anim)
       if (cos.frames.length > 1) cos.timer = setInterval(() => {
+        if (document.hidden || cos.viewer?.renderPaused) return
         cos.frame = (cos.frame + 1) % cos.frames.length
         cos.viewer && cos.viewer.loadCape(cos.frames[cos.frame], { backEquipment: cos.anim === 'fly' ? 'elytra' : 'cape' })
-      }, 120)
+      }, c.frameMs || 110)
     }
 
     function renderGrid () {
@@ -407,7 +408,7 @@
     async function init () {
       try { cos.list = await (await fetch(CAPES + 'capes.json')).json() } catch { $('#cosName').textContent = 'Capes unavailable'; return }
       // Lead with crowd-pleasers: animated first, then the rest in catalog order.
-      cos.list.sort((a, b) => (b.frames > 1) - (a.frames > 1))
+      cos.list.sort((a, b) => Number(b.cat === 'HD Originals') - Number(a.cat === 'HD Originals') || (b.frames > 1) - (a.frames > 1))
       renderGrid()
       await new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'assets/vendor/skinview3d.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s) }).catch(() => {})
       const A = window.skinview3d
@@ -438,7 +439,7 @@
       const b = e.target.closest('.cos-item.anim'); if (!b || b.dataset.play) return
       const c = cos.list.find(x => x.id === b.dataset.id); let f = 0
       b.dataset.play = '1'
-      const iv = setInterval(() => { f = (f + 1) % c.frames; b.style.backgroundImage = `url('${file(c, f)}')` }, 120)
+      const iv = setInterval(() => { if (!b.isConnected) return clearInterval(iv); f = (f + 1) % c.frames; b.style.backgroundImage = `url('${file(c, f)}')` }, c.frameMs || 110)
       b.addEventListener('pointerleave', () => { clearInterval(iv); delete b.dataset.play; b.style.backgroundImage = `url('${file(c)}')` }, { once: true })
     })
     $('#cosPrev').addEventListener('click', () => pick(cos.i - 1, true))

@@ -5,7 +5,7 @@
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
   const reduced = matchMedia('(prefers-reduced-motion: reduce)')
   let motion = !reduced.matches
-  let capes = [], cat = 'Anime', query = '', limit = 24, current = null, previousFocus = null
+  let capes = [], cat = 'New HD', query = '', limit = 24, current = null, previousFocus = null
   const face = (c, f = 0) => `assets/previews/${c.id}${c.frames > 1 ? '_' + f : ''}.png`
   const live = new Set()
   const io = new IntersectionObserver(entries => entries.forEach(e => e.isIntersecting ? live.add(e.target) : live.delete(e.target)), { rootMargin: '80px' })
@@ -28,28 +28,30 @@
   reduced.addEventListener('change', e => setMotion(!e.matches))
 
   function matches(c) {
+    if (cat === 'New HD' && c.cat !== 'HD Originals') return false
     if (cat === 'Anime' && c.cat !== 'Anime') return false
     if (cat === 'Animated' && c.frames < 2) return false
     if (cat === 'Free' && c.tier === 'pro') return false
     if (cat === 'Xion+' && c.tier !== 'pro') return false
-    if (!['All', 'Anime', 'Animated', 'Free', 'Xion+'].includes(cat) && c.cat !== cat) return false
+    if (!['All', 'New HD', 'Anime', 'Animated', 'Free', 'Xion+'].includes(cat) && c.cat !== cat) return false
     return !query || `${c.name} ${c.cat}`.toLowerCase().includes(query)
   }
   function buildChips() {
-    const cats = [...new Set(['All', 'Anime', 'Animated', 'Free', 'Xion+', ...capes.map(c => c.cat).filter(Boolean)])]
+    const cats = [...new Set(['All', 'New HD', 'Anime', 'Animated', 'Free', 'Xion+', ...capes.map(c => c.cat).filter(c => c && c !== 'HD Originals')])]
     $('#chips').innerHTML = cats.map(n => `<button type="button" data-cat="${esc(n)}" class="${n === cat ? 'on' : ''}" aria-pressed="${n === cat}">${esc(n)}</button>`).join('')
   }
   function renderGrid() {
     $$('#grid .card').forEach(el => io.unobserve(el))
     live.clear()
-    const matchesList = capes.filter(matches).sort((a, b) => Number(b.cat === 'Anime') - Number(a.cat === 'Anime'))
+    const rank = c => c.cat === 'HD Originals' ? 2 : c.cat === 'Anime' ? 1 : 0
+    const matchesList = capes.filter(matches).sort((a, b) => rank(b) - rank(a))
     const list = matchesList.slice(0, limit)
     $('#empty').hidden = !!list.length
     $('#count').textContent = `${list.length} of ${matchesList.length} capes shown`
     $('#loadMore').hidden = list.length >= matchesList.length
-    $('#grid').innerHTML = list.map(c => `<article class="card in" data-id="${esc(c.id)}" data-frames="${c.frames}" data-name="${esc(c.name)}" data-cat="${esc(c.cat)}">
+    $('#grid').innerHTML = list.map(c => `<article class="card in" data-id="${esc(c.id)}" data-frames="${c.frames}" data-frame-ms="${c.frameMs || 110}" data-name="${esc(c.name)}" data-cat="${esc(c.cat)}">
       <div class="shot"><img src="${face(c)}" alt="${esc(c.name)} cape artwork" loading="lazy" decoding="async"><div class="glow"></div><button class="cape-open" type="button" aria-label="Preview ${esc(c.name)} in 3D"><span class="preview-cue">VIEW IN 3D ↗</span></button></div>
-      <span class="${c.tier === 'pro' ? 'pro' : 'free'}">${c.tier === 'pro' ? 'XION+' : 'FREE'}</span><div class="meta"><span class="nm">${esc(c.name)}</span><span class="rarity">${c.frames > 1 ? '◌ Animated' : esc(c.cat)}</span></div></article>`).join('')
+      <span class="${c.tier === 'pro' ? 'pro' : 'free'}">${c.tier === 'pro' ? 'XION+' : 'FREE'}</span><div class="meta"><span class="nm">${esc(c.name)}</span><span class="rarity">${c.texWidth >= 1024 ? 'HD · ' + c.frames + ' frames' : c.frames > 1 ? '◌ Animated' : esc(c.cat)}</span></div></article>`).join('')
     $$('#grid .card').forEach(el => io.observe(el))
   }
   $('#chips').addEventListener('click', e => {
@@ -65,9 +67,10 @@
     $('#lbImg').alt = c.name + ' cape artwork'
     $('#lbCap').textContent = c.name
     $('#modelHint').textContent = 'Loading the 3D preview…'
-    $('#lbTier').textContent = c.frames > 1 ? '8-frame animated cape' : 'Cape collection'
-    $('#lbBuy').textContent = c.tier === 'pro' ? 'Get this look' : 'Included free in Xion Launcher'
-    $('#lbNotice').textContent = c.tier === 'pro' ? 'Buy individually when available, or unlock launcher capes with Xion+.' : 'Choose this cape in the launcher. No purchase needed.'
+    $('#lbTier').textContent = c.frames > 1 ? `${c.frames}-frame ${c.texWidth >= 1024 ? 'HD ' : ''}animated cape` : 'Cape collection'
+    const unlocked = (window.XionAvailable || []).includes(c.id)
+    $('#lbBuy').textContent = unlocked ? 'Open my locker' : c.tier === 'pro' ? 'Get this look' : 'Included free in Xion Launcher'
+    $('#lbNotice').textContent = c.texWidth >= 1024 ? `Original ${c.texWidth}×${c.texHeight} textures · ${c.frameMs} ms/frame · included with Xion+ or sold individually.` : c.tier === 'pro' ? 'Buy individually when available, or unlock launcher capes with Xion+.' : 'Choose this cape in the launcher. No purchase needed.'
     $('#lightbox').hidden = false
     document.documentElement.classList.add('preview-lock')
     $('#lbClose').focus()
@@ -110,19 +113,22 @@
     dispatchEvent(new CustomEvent('xion:model-view', { detail: b.dataset.modelView }))
   }))
 
-  let frame = 0
   setInterval(() => {
     if (!motion || document.hidden) return
-    frame++
+    const time = performance.now()
     for (const card of live) {
       if (!card.isConnected) { live.delete(card); continue }
       const n = Number(card.dataset.frames)
-      if (n > 1) card.querySelector('img').src = face({ id: card.dataset.id, frames: n }, frame % n)
+      const f = Math.floor(time / Number(card.dataset.frameMs || 110)) % n
+      if (n > 1 && card.dataset.frame !== String(f)) { card.dataset.frame = String(f); card.querySelector('img').src = face({ id: card.dataset.id, frames: n }, f) }
     }
-    if (current?.frames > 1) $('#lbImg').src = face(current, frame % current.frames)
-    const badge = $('.gold-badge'), f = frame % 16
+    if (current?.frames > 1) {
+      const f = Math.floor(time / (current.frameMs || 110)) % current.frames
+      if ($('#lbImg').dataset.frame !== String(f)) { $('#lbImg').dataset.frame = String(f); $('#lbImg').src = face(current, f) }
+    }
+    const badge = $('.gold-badge'), f = Math.floor(time / 140) % 16
     badge.style.backgroundPosition = `${-(f % 8) * 24}px ${-Math.floor(f / 8) * 24}px`
-  }, 140)
+  }, 25)
 
   async function load() {
     try {
@@ -130,6 +136,7 @@
       if (!r.ok) throw new Error('Cape catalog unavailable')
       capes = await r.json()
       capes.forEach(c => { c.frames = c.frames || 1 })
+      $('#search').placeholder = `Search ${capes.length} capes…`
       buildChips(); renderGrid()
       const groups = [...new Set(capes.map(c => c.cat))]
       $('#setGrid').innerHTML = groups.map(name => {

@@ -25,7 +25,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 
 public class XionClient implements ClientModInitializer {
 	public static final String MOD_ID = "xionclient";
-	public static final String VERSION = "1.26.2";
+	public static final String VERSION = "1.27.0";
 	private static final int KEY_RIGHT_SHIFT = 344;
 
 	private static KeyMapping menuKey;
@@ -110,6 +110,12 @@ public class XionClient implements ClientModInitializer {
 		String review = System.getProperty("xionclient.preview.tab", "");
 		if (!review.isEmpty()) {
 			if (previewTicks == 40) Compat.setScreen(new XionMenuScreen(null, XionMenuScreen.Tab.valueOf(review)));
+			String cape = System.getProperty("xionclient.preview.cape", "");
+			if (!cape.isEmpty() && previewTicks >= 40) {
+				if (previewTicks == 40) net.xion.client.feature.Cosmetics.select(cape);
+				Object texture = net.xion.client.feature.Cosmetics.capeTexture();
+				if (previewTicks == 120) System.out.println("[Xion HD Preview] " + cape + " texture ready=" + (texture != null));
+			}
 			if (previewTicks == 100 && Boolean.getBoolean("xionclient.preview.capture")) {
 				//#if MC >= 260000
 				net.minecraft.client.Screenshot.grab(mc.gameDirectory, "xion-" + review.toLowerCase() + "-preview.png", mc.gameRenderer.mainRenderTarget(), 1,

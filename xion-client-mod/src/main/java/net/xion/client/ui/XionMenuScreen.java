@@ -252,7 +252,7 @@ public class XionMenuScreen extends BaseScreen {
 		g.pill(lx - 2, ly - 2, 28, 28, Colors.alpha(orb, 0.12f * a));
 		g.pill(lx, ly, 24, 24, Colors.alpha(Colors.lerp(Colors.CARD, Colors.ACCENT, 0.2f), a));
 		g.pillOutline(lx, ly, 24, 24, Colors.alpha(0x38FFFFFF, a));
-		g.centeredText(Badge.glyph(), lx + 12, ly + 1, 2.6f, Colors.alpha(0xFFFFFFFF, a), false);
+		g.blit(Ids.LOGO, lx + 2, ly + 2, 20, 20, 0, 0, 256, 256, 256, 256, Colors.alpha(0xFFFFFFFF, a));
 
 		g.scaledText("XION", px + 46, py + 8, 1.5f, Colors.alpha(Colors.TEXT, a), true);
 		int titleW = (int) (g.font.width("XION") * 1.5f);

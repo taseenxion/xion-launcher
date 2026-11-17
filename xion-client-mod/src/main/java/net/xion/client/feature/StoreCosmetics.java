@@ -7,12 +7,17 @@ import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.xion.client.compat.Ids;
+import net.xion.client.XionConfig;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayDeque;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,14 +35,18 @@ public final class StoreCosmetics {
 	public static final String ASSETS = ACCOUNT + "/assets/capes/";
 	public static final String LEGACY = "https://xion-store.vercel.app/assets/capes/";
 	private static final long FETCH_EVERY = 60_000L;
-	private static final long FRAME_MS = 110;
 	private static final Object LOADING = new Object(), MISSING = new Object();
 
 	/** lowercase player name -> cape id */
 	private static volatile Map<String, String> capes = Map.of();
 	/** cape id -> frame count */
 	private static volatile Map<String, Integer> frames = Map.of();
+	private static volatile Map<String, Integer> timings = Map.of();
 	private static final Map<String, Object> textures = new ConcurrentHashMap<>();
+	private static final Map<String, Long> textureBytes = new HashMap<>();
+	private static final ArrayDeque<String> recent = new ArrayDeque<>();
+	private static long residentBytes;
+	private static final long TEXTURE_BUDGET = 96L * 1024 * 1024;
 	private static final Set<String> fetching = ConcurrentHashMap.newKeySet();
 	private static long lastFetch;
 	private static volatile boolean busy;
@@ -87,6 +96,11 @@ public final class StoreCosmetics {
 			}
 		}
 		frames = f;
+		Map<String, Integer> ms = new ConcurrentHashMap<>();
+		if (root.has("capeFrameMs") && root.get("capeFrameMs").isJsonObject()) for (Map.Entry<String, JsonElement> e : root.getAsJsonObject("capeFrameMs").entrySet()) {
+			try { int value = e.getValue().getAsInt(); if (value >= 16 && value <= 1000) ms.put(e.getKey(), value); } catch (Exception ignored) {}
+		}
+		timings = ms;
 		capes = c;
 	}
 
@@ -96,7 +110,7 @@ public final class StoreCosmetics {
 		String id = capes.get(name.toLowerCase(java.util.Locale.ROOT));
 		if (id == null) return null;
 		int n = frames.getOrDefault(id, 1);
-		String file = n > 1 ? id + "_" + (System.currentTimeMillis() / FRAME_MS) % n : id;
+		String file = n > 1 ? id + "_" + CapeFrames.at(System.currentTimeMillis(), n, timings.getOrDefault(id, 110)) : id;
 		Object t = textures.get(file);
 		if (t == null) {
 			load(file);
@@ -104,7 +118,9 @@ public final class StoreCosmetics {
 			Object first = n > 1 ? textures.get(id + "_0") : null;
 			return first != null && first != LOADING && first != MISSING ? first : null;
 		}
-		return t == LOADING || t == MISSING ? null : t;
+		if (t == LOADING || t == MISSING) return null;
+		recent.remove(file); recent.addLast(file);
+		return t;
 	}
 
 	private static void load(String file) {
@@ -113,42 +129,58 @@ public final class StoreCosmetics {
 		Thread t = new Thread(() -> {
 			byte[] png = null;
 			try {
-				png = get(ASSETS + file + ".png");
+				String directory = XionConfig.launcher.capesDir;
+				if (directory != null && !directory.isEmpty()) {
+					Path local = Path.of(directory).resolve(file + ".png");
+					if (Files.isRegularFile(local)) png = Files.readAllBytes(local);
+				}
+				if (png == null) png = get(ASSETS + file + ".png");
 				// Halloween/winter and other old shop capes are intentionally retained for
 				// players who bought them, but those PNGs only exist on the legacy host.
 				if (png == null) png = get(LEGACY + file + ".png");
 			} catch (Exception ignored) {
 			}
-			final byte[] data = png;
+			NativeImage decoded = null;
+			try { if (png != null) decoded = NativeImage.read(new ByteArrayInputStream(png)); } catch (Exception ignored) {}
+			final NativeImage data = decoded;
 			try {
 				Minecraft.getInstance().execute(() -> register(file, data));
 			} catch (Exception e) {
+				if (data != null) data.close();
 				textures.put(file, MISSING);
 				fetching.remove(file);
 			}
 		}, "Xion-Store-Tex");
 		t.setDaemon(true);
+		t.setPriority(Thread.MIN_PRIORITY);
 		t.start();
 	}
 
-	private static void register(String file, byte[] png) {
+	private static void register(String file, NativeImage img) {
 		try {
-			if (png == null) {
+			if (img == null) {
 				textures.put(file, MISSING);
 				return;
 			}
-			try (InputStream in = new ByteArrayInputStream(png)) {
-				NativeImage img = NativeImage.read(in);
-				//#if MC >= 12105
-				DynamicTexture tex = new DynamicTexture(() -> "xion_store_cape_" + file, img);
-				//#else
-				DynamicTexture tex = new DynamicTexture(img);
-				//#endif
-				Object id = Ids.of("xionclient", "dynamic/store_cape/" + file);
-				Minecraft.getInstance().getTextureManager().register(Ids.cast(id), tex);
-				textures.put(file, id);
+			long bytes = 4L * img.getWidth() * img.getHeight();
+			//#if MC >= 12105
+			DynamicTexture tex = new DynamicTexture(() -> "xion_store_cape_" + file, img);
+			//#else
+			DynamicTexture tex = new DynamicTexture(img);
+			//#endif
+			Object id = Ids.of("xionclient", "dynamic/store_cape/" + file);
+			Minecraft.getInstance().getTextureManager().register(Ids.cast(id), tex);
+			textures.put(file, id);
+			textureBytes.put(file, bytes); residentBytes += bytes;
+			recent.remove(file); recent.addLast(file);
+			while (residentBytes > TEXTURE_BUDGET && recent.size() > 1) {
+				String oldest = recent.removeFirst();
+				Object old = textures.remove(oldest);
+				Long weight = textureBytes.remove(oldest); if (weight != null) residentBytes -= weight;
+				if (old != null && old != LOADING && old != MISSING) Minecraft.getInstance().getTextureManager().release(Ids.cast(old));
 			}
 		} catch (Exception e) {
+			if (img != null) img.close();
 			textures.put(file, MISSING);
 		} finally {
 			fetching.remove(file);

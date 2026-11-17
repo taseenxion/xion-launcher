@@ -1121,8 +1121,17 @@ $('#updatePill').addEventListener('click', async () => {
 })
 
 // ---------- Capes (Skin page) ----------
-const capes = { list: [], selected: '', premium: false, cat: 'All', timer: null, owned: [] }
+const capes = { list: [], selected: '', premium: false, cat: 'All', timer: null, owned: [], previewToken: 0 }
 const capeFile = (c, f = 0) => c.src || '../assets/capes/' + (c.frames > 1 ? `${c.id}_${f}` : c.id) + '.png'
+const capeThumb = (c, f = 0) => c.preview ? `../assets/capes/${c.id}_preview_${f}.png` : capeFile(c, f)
+const capeImages = new Map()
+function capeImage(src) {
+  if (!capeImages.has(src)) {
+    if (capeImages.size >= 48) capeImages.delete(capeImages.keys().next().value)
+    capeImages.set(src, new Promise((resolve, reject) => { const image = new Image(); image.onload = () => resolve(image); image.onerror = reject; image.src = src }))
+  }
+  return capeImages.get(src)
+}
 
 async function loadCapes () {
   try {
@@ -1137,10 +1146,10 @@ async function loadCapes () {
 function renderCapes () {
   const cats = ['All', 'Free', ...new Set(capes.list.map(c => c.cat))]
   $('#capeCats').innerHTML = cats.map(c => `<button data-cat="${c}" class="${c === capes.cat ? 'on' : ''}">${c}</button>`).join('')
-  const shown = capes.list.filter(c => capes.cat === 'All' || (capes.cat === 'Free' ? c.tier === 'free' : c.cat === capes.cat))
+  const shown = capes.list.filter(c => capes.cat === 'All' || (capes.cat === 'Free' ? c.tier === 'free' : c.cat === capes.cat)).sort((a, b) => Number(b.cat === 'HD Originals') - Number(a.cat === 'HD Originals'))
   $('#capeGrid').innerHTML = `<button class="cape none ${capes.selected ? '' : 'on'}" data-cape="" title="No cape">none</button>` + shown.map(c => {
     const locked = c.tier === 'pro' && !capes.premium && !capes.owned.includes(c.id)
-    return `<button class="cape ${c.tier} ${locked ? 'locked' : ''} ${c.id === capes.selected ? 'on' : ''}" data-cape="${c.id}" title="${esc(c.name)}${c.tier === 'pro' ? ' · Xion+' : ''}" style="background-image:url('${capeFile(c)}')">${c.frames > 1 ? '<i class="anim"></i>' : ''}</button>`
+    return `<button class="cape ${c.tier} ${c.preview ? 'preview' : ''} ${locked ? 'locked' : ''} ${c.id === capes.selected ? 'on' : ''}" data-cape="${c.id}" title="${esc(c.name)}${c.texWidth >= 1024 ? ' · 1024×512 HD' : ''}${c.tier === 'pro' ? ' · Xion+' : ''}" style="background-image:url('${capeThumb(c)}')">${c.frames > 1 ? '<i class="anim"></i>' : ''}</button>`
   }).join('')
   const cur = capes.list.find(c => c.id === capes.selected)
   $('#capeName').textContent = cur ? cur.name : 'No cape'
@@ -1148,16 +1157,31 @@ function renderCapes () {
 }
 
 // Shows the picked cape on the 3D model; animated capes cycle their frames, Fly shows it as elytra.
-function previewCape () {
+async function previewCape () {
   const v = player.viewer
   clearInterval(capes.timer)
+  const token = ++capes.previewToken
   if (!v) return
   const c = capes.list.find(x => x.id === capes.selected)
   const opts = () => ({ backEquipment: player.anim === 'fly' ? 'elytra' : 'cape' })
   if (!c) { v.loadCape(null); return }
-  let f = 0
-  v.loadCape(capeFile(c), opts())
-  if (c.frames > 1) capes.timer = setInterval(() => { if (document.body.dataset.page !== 'player') return; f = (f + 1) % c.frames; v.loadCape(capeFile(c, f), opts()) }, 140)
+  try {
+    const images = await Promise.all(Array.from({ length: c.frames || 1 }, (_, f) => capeImage(capeFile(c, f))))
+    if (token !== capes.previewToken) return
+    await v.loadCape(images[0], opts())
+    let frame = 0
+    if (images.length > 1) capes.timer = setInterval(() => {
+      if (document.body.dataset.page !== 'player' || document.hidden) return
+      const next = Math.floor(performance.now() / (c.frameMs || 110)) % images.length
+      if (next === frame || !v.capeTexture) return
+      frame = next
+      const canvas = v.capeCanvas, image = images[frame]
+      if (canvas.width !== image.width) canvas.width = image.width
+      if (canvas.height !== image.height) canvas.height = image.height
+      canvas.getContext('2d').drawImage(image, 0, 0)
+      v.capeTexture.needsUpdate = true
+    }, Math.min(25, c.frameMs || 110))
+  } catch (e) { console.warn('Cape preview unavailable:', c.id) }
 }
 
 $('#capeCats').addEventListener('click', e => {
@@ -1249,8 +1273,8 @@ $('#capeGrid').addEventListener('mouseover', e => {
   if (!c || c.frames < 2 || b.dataset.playing) return
   b.dataset.playing = '1'
   let f = 0
-  const iv = setInterval(() => { f = (f + 1) % c.frames; b.style.backgroundImage = `url('${capeFile(c, f)}')` }, 140)
-  b.addEventListener('mouseleave', () => { clearInterval(iv); delete b.dataset.playing; b.style.backgroundImage = `url('${capeFile(c)}')` }, { once: true })
+  const iv = setInterval(() => { if (!b.isConnected) return clearInterval(iv); f = (f + 1) % c.frames; b.style.backgroundImage = `url('${capeThumb(c, f)}')` }, c.frameMs || 110)
+  b.addEventListener('mouseleave', () => { clearInterval(iv); delete b.dataset.playing; b.style.backgroundImage = `url('${capeThumb(c)}')` }, { once: true })
 })
 
 function renderPlayerStats () {
@@ -1545,17 +1569,17 @@ function renderAccount () {
       <p class="muted small" style="margin-top:10px">One account per Minecraft name. Capes and Xion+ bought on xion-shop.vercel.app with this email unlock here and show on your name in game.</p>`
     return
   }
-  const own = a.owned || []
+  const own = (a.access || a.owned || []).filter(id => id !== 'xion_plus')
   const mine = own.map(id => capes.list.find(c => c.id === id)).filter(Boolean)
   const worn = a.equipped && a.equipped.cape
   box.innerHTML = `<div class="acc-who">
       <div><b>${esc(a.name || a.ign)}</b><span>${esc(a.email)} · linked to <b>${esc(a.ign)}</b></span></div>
       <button class="btn ghost sm" id="accOut">Sign out</button>
     </div>
-    <div class="acc-stats"><span><b>${own.length}</b> cosmetic${own.length === 1 ? '' : 's'} owned</span><span>${a.plus ? '<b>Xion+ active</b>' : 'Xion+ not active'}</span><span>Wearing <b>${esc(accCapeName(worn) || 'nothing')}</b></span><button class="btn ghost sm" id="accSync">Sync now</button></div>
+    <div class="acc-stats"><span><b>${own.length}</b> cosmetic${own.length === 1 ? '' : 's'} available</span><span>${a.plus ? '<b>Xion+ active</b>' : 'Xion+ not active'}</span><span>Wearing <b>${esc(accCapeName(worn) || 'nothing')}</b></span><button class="btn ghost sm" id="accSync">Sync now</button></div>
     ${mine.length
-      ? `<div class="acc-capes">${mine.slice(0, 18).map(c => `<button class="acc-cape ${worn === c.id ? 'on' : ''}" data-acape="${c.id}" title="${esc(c.name)}" style="background-image:url('${capeFile(c)}')"></button>`).join('')}</div>
-         <p class="muted small">Click a cape you own to wear it. It applies on your next launch, and other players already see it in game.</p>`
+      ? `<div class="acc-capes">${mine.slice(0, 18).map(c => `<button class="acc-cape ${c.preview ? 'preview' : ''} ${worn === c.id ? 'on' : ''}" data-acape="${c.id}" title="${esc(c.name)}" style="background-image:url('${capeThumb(c)}')"></button>`).join('')}</div>
+         <p class="muted small">Choose a cape available through your purchases or Xion+. It applies on your next launch and syncs to other Xion Client players.</p>`
       : '<p class="muted small">Nothing bought on this account yet. Purchases appear here as soon as the payment is approved.</p>'}`
 }
 

@@ -95,11 +95,12 @@ async function capeCard (it) {
   const g = c.getContext('2d')
   g.imageSmoothingEnabled = false
   const w = 140, h = 224, x = 80, y = 52
+  const scale = img.width / 64
   g.setTransform(1, -0.12, 0, 1, 0, 18)
   g.fillStyle = 'rgba(0,0,0,.45)'; g.filter = 'blur(10px)'; g.fillRect(x + 14, y + 16, w, h); g.filter = 'none'
-  g.drawImage(img, 0, 4, 4, 64, x - 10, y, 10, h)
+  g.drawImage(img, 0, scale, scale, 16 * scale, x - 10, y, 10, h)
   g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(x - 10, y, 10, h)
-  g.drawImage(img, 4, 4, 40, 64, x, y, w, h)
+  g.drawImage(img, scale, scale, 10 * scale, 16 * scale, x, y, w, h)
   const sheen = g.createLinearGradient(x, y, x + w, y + h)
   sheen.addColorStop(0, 'rgba(255,255,255,.18)'); sheen.addColorStop(0.45, 'rgba(255,255,255,0)'); sheen.addColorStop(1, 'rgba(0,0,0,.18)')
   g.fillStyle = sheen; g.fillRect(x, y, w, h)

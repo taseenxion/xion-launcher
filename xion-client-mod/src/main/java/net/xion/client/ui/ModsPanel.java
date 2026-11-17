@@ -13,7 +13,7 @@ import net.xion.client.compat.Compat;
 import net.xion.client.compat.Gfx;
 import net.xion.client.feature.ModToggles;
 import net.xion.client.feature.PackLogos;
-import net.xion.client.feature.Badge;
+import net.xion.client.compat.Ids;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -389,7 +389,7 @@ final class ModsPanel {
 		g.vGradient(x + 2, y + 1, w - 4, 30, Colors.alpha(Colors.ACCENT, (0.025f + e.hover * 0.04f) * ca), 0x00FFFFFF);
 		g.pill(x + 10, y + 9, 32, 32, Colors.alpha(0xFF0D1420, ca));
 		int color = Colors.alpha(on ? 0xFFFFFFFF : Colors.MUTED, ca);
-		if (e.xion) g.centeredText(Badge.glyph(false), x + 26, y + 12, 2.8f, color, false);
+		if (e.xion) g.blit(Ids.LOGO, x + 12, y + 11, 28, 28, 0, 0, 256, 256, 256, 256, color);
 		else {
 			ModLogos.Logo logo = ModLogos.get(e.root, e.icon, e.id);
 			if (logo != null) {

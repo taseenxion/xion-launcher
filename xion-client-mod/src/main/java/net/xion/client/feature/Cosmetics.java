@@ -12,12 +12,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
- * Xion capes. The set (capes.json + 256x128 PNGs, 8 frames for animated ones) ships with Xion Launcher,
+ * Xion capes. The set (capes.json + standard/HD PNG frames) ships with Xion Launcher,
  * which tells us its folder. Capes are shown on your own player and used for your elytra wings; like the
  * custom skin, only you see them. Free capes work for everyone, the rest need Xion+.
  */
@@ -28,6 +30,10 @@ public final class Cosmetics {
 		public String cat = "";
 		public String tier = "free";
 		public int frames = 1;
+		public int frameMs = 110;
+		public int texWidth = 256, texHeight = 128;
+		public boolean preview = false;
+		public int previewWidth = 80, previewHeight = 128;
 
 		public boolean pro() {
 			return "pro".equals(tier);
@@ -40,11 +46,16 @@ public final class Cosmetics {
 
 	/** Texture size and where the outer face sits in it (4x the vanilla 64x32 layout). */
 	public static final int TEX_W = 256, TEX_H = 128, FACE_U = 4, FACE_V = 4, FACE_W = 40, FACE_H = 64;
-	private static final long FRAME_MS = 110;
 	private static final Object MISSING = new Object();
+	private static final Object LOADING = new Object();
 
 	private static List<Cape> capes;
-	private static final Map<String, Object> textures = new HashMap<>();
+	private static final Map<String, Object> textures = new ConcurrentHashMap<>();
+	private static volatile String activeHd = "";
+	private static Object lastHd;
+	private static final ExecutorService LOADER = Executors.newSingleThreadExecutor(r -> {
+		Thread t = new Thread(r, "Xion-HD-Capes"); t.setDaemon(true); t.setPriority(Thread.MIN_PRIORITY); return t;
+	});
 
 	private Cosmetics() {}
 
@@ -103,13 +114,56 @@ public final class Cosmetics {
 	/** Texture of the worn cape for this moment (animated capes cycle their frames), or null. */
 	public static Object capeTexture() {
 		Cape c = worn();
+		String next = c != null && c.texWidth > TEX_W ? c.id : "";
+		if (!next.equals(activeHd)) {
+			String old = activeHd;
+			activeHd = next;
+			lastHd = null;
+			// Keep only the currently worn HD animation in GPU memory. Preview textures are small.
+			if (!old.isEmpty()) for (String key : new ArrayList<>(textures.keySet())) {
+				if (!key.startsWith(old + "_") || !key.substring(old.length() + 1).matches("\\d+")) continue;
+				Object tex = textures.remove(key);
+				if (ready(tex)) Minecraft.getInstance().getTextureManager().release(Ids.cast(tex));
+			}
+		}
 		return c == null ? null : texture(c);
 	}
 
 	public static Object texture(Cape c) {
-		String file = c.frames > 1 ? c.id + "_" + (System.currentTimeMillis() / FRAME_MS) % c.frames : c.id;
+		String file = c.frames > 1 ? c.id + "_" + CapeFrames.at(System.currentTimeMillis(), c.frames, c.frameMs) : c.id;
+		if (c.texWidth > TEX_W) {
+			Object tex = textures.get(file);
+			if (tex == null) loadHd(c.id, file);
+			return ready(tex) ? tex : lastHd;
+		}
 		Object t = textures.computeIfAbsent(file, Cosmetics::load);
 		return t == MISSING ? null : t;
+	}
+
+	public static Object previewTexture(Cape c) {
+		if (!c.preview) return texture(c);
+		String file = c.id + "_preview_" + CapeFrames.at(System.currentTimeMillis(), c.frames, c.frameMs);
+		Object t = textures.computeIfAbsent(file, Cosmetics::load);
+		return t == MISSING ? null : t;
+	}
+
+	private static boolean ready(Object texture) {
+		return texture != null && texture != MISSING && texture != LOADING;
+	}
+
+	private static void loadHd(String owner, String file) {
+		if (textures.putIfAbsent(file, LOADING) != null) return;
+		LOADER.execute(() -> {
+			try (InputStream in = Files.newInputStream(dir().resolve(file + ".png"))) {
+				NativeImage image = NativeImage.read(in);
+				try { Minecraft.getInstance().execute(() -> {
+					if (!owner.equals(activeHd)) { image.close(); textures.remove(file, LOADING); return; }
+					Object texture = register(file, image);
+					textures.put(file, texture);
+					if (ready(texture)) lastHd = texture;
+				}); } catch (Exception e) { image.close(); throw e; }
+			} catch (Exception e) { textures.put(file, MISSING); }
+		});
 	}
 
 	private static Object load(String file) {
@@ -117,6 +171,14 @@ public final class Cosmetics {
 		if (!Files.isRegularFile(p)) return MISSING;
 		try (InputStream in = Files.newInputStream(p)) {
 			NativeImage img = NativeImage.read(in);
+			return register(file, img);
+		} catch (Exception e) {
+			return MISSING;
+		}
+	}
+
+	private static Object register(String file, NativeImage img) {
+		try {
 			//#if MC >= 12105
 			DynamicTexture tex = new DynamicTexture(() -> "xion_cape_" + file, img);
 			//#else
@@ -126,6 +188,7 @@ public final class Cosmetics {
 			Minecraft.getInstance().getTextureManager().register(Ids.cast(id), tex);
 			return id;
 		} catch (Exception e) {
+			img.close();
 			return MISSING;
 		}
 	}

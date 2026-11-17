@@ -377,7 +377,7 @@ export class Dresser {
 
   loop () {
     if (this.viewer.disposed) return
-    this.tick(performance.now())
+    if (!document.hidden && !this.viewer.renderPaused) this.tick(performance.now())
     requestAnimationFrame(() => this.loop())
   }
 
@@ -386,7 +386,7 @@ export class Dresser {
     this.last = now
     for (const f of Object.values(this.updaters)) f && f(t, dt)
     if (this.capeImgs.length > 1 && this.viewer.capeTexture) {
-      const f = Math.floor(now / CAPE_FRAME_MS) % this.capeImgs.length
+      const f = Math.floor(now / (this.cape?.frameMs || CAPE_FRAME_MS)) % this.capeImgs.length
       if (f !== this.capeFrame) { this.capeFrame = f; loadCapeToCanvas(this.viewer.capeCanvas, this.capeImgs[f]); this.viewer.capeTexture.needsUpdate = true }
     }
   }

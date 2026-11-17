@@ -80,9 +80,12 @@ function limited (key, max, windowMs) {
 }
 
 const clean = (v, max) => String(v == null ? '' : v).trim().slice(0, max)
+// Membership access is derived, not stored as purchases: refunds must not leave permanent grants.
+const access = a => [...new Set([...(a.owned || []), ...(plus(a) ? require('./cos/catalog').ITEMS.filter(i => i.includedWithPlus).map(i => i.id) : [])])]
+const canWear = (a, item) => (a.owned || []).includes(item) || (plus(a) && !!require('./cos/catalog').byId(item)?.includedWithPlus)
 const view = a => ({
   id: a.id, email: a.email, name: a.name, ign: a.ign, created: a.created,
-  plus: plus(a), owned: a.owned || [], equipped: a.equipped || {}, orders: (a.orders || []).slice(0, MAX_ORDERS)
+  plus: plus(a), owned: a.owned || [], access: access(a), equipped: a.equipped || {}, orders: (a.orders || []).slice(0, MAX_ORDERS)
 })
 
 async function signup ({ email, pass, ign, name }) {
@@ -147,7 +150,7 @@ async function publishPlayer (a) {
   p.owned = [...new Set([...(p.owned || []), ...wearables])]
   p.equipped = { ...(p.equipped || {}) }
   for (const s of SLOTS) {
-    if (a.equipped && a.equipped[s] && p.owned.includes(a.equipped[s])) p.equipped[s] = a.equipped[s]
+    if (a.equipped && a.equipped[s] && canWear(a, a.equipped[s])) p.equipped[s] = a.equipped[s]
     // The account is authoritative once linked. Clearing a slot must also clear any old locker
     // selection (especially wings/aura-era capes) even when the player still owns that item.
     else delete p.equipped[s]
@@ -165,7 +168,7 @@ async function equip (a, slot, item) {
     const C = require('./cos/catalog')
     const it = C.byId(item)
     if (!it || it.type !== slot) throw new Error('That item does not go there.')
-    if (!(a.owned || []).includes(item)) throw new Error('You do not own that item yet.')
+    if (!canWear(a, item)) throw new Error('You do not own that item yet.')
     a.equipped[slot] = item
   }
   await save(a)
@@ -197,10 +200,10 @@ async function revokeItems (accountId, items, keep = []) {
   if (!a) return null
   const kept = new Set(keep)
   a.owned = (a.owned || []).filter(i => !items.includes(i) || kept.has(i))
-  for (const s of SLOTS) if (a.equipped && a.equipped[s] && !a.owned.includes(a.equipped[s])) delete a.equipped[s]
+  for (const s of SLOTS) if (a.equipped && a.equipped[s] && !canWear(a, a.equipped[s])) delete a.equipped[s]
   await save(a)
   await publishPlayer(a)
   return view(a)
 }
 
-module.exports = { signup, login, fromToken, addOrder, equip, grantItems, revokeItems, publishPlayer, view, idFromToken, findByIgn, passFor, verifyPass, plus, PLUS_ID, EMAIL, IGN, SLOTS }
+module.exports = { signup, login, fromToken, addOrder, equip, grantItems, revokeItems, publishPlayer, view, access, canWear, idFromToken, findByIgn, passFor, verifyPass, plus, PLUS_ID, EMAIL, IGN, SLOTS }

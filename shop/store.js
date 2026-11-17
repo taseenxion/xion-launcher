@@ -59,7 +59,9 @@
         card.querySelector('.shot').appendChild(b)
       }
       const inCart = cart.includes(id)
-      b.textContent = inCart ? '✓ In cart' : money(CUR, item.price[CUR])
+      const unlocked = signedIn() && (ACC.access || ACC.owned || []).includes(id)
+      b.textContent = unlocked ? '✓ Unlocked' : inCart ? '✓ In cart' : money(CUR, item.price[CUR])
+      b.disabled = unlocked
       b.classList.toggle('in', inCart)
     }
     // The Anime set card in Collections can buy the whole set at once.
@@ -679,9 +681,9 @@
       return
     }
 
-    const own = (ACC.owned || []).filter(id => { const i = cosItem(id); return i && i.type !== 'plus' })
+    const own = (ACC.access || ACC.owned || []).filter(id => { const i = cosItem(id); return i && i.type !== 'plus' })
     body.innerHTML = `<div class="acc-who"><div><b>${esc(ACC.name || ACC.ign)}</b><small>${esc(ACC.email)} · linked to <b>${esc(ACC.ign)}</b></small></div><button class="link" id="accOut">Sign out</button></div>
-      <div class="acc-stats"><span><b>${own.length}</b> cosmetic${own.length === 1 ? '' : 's'} owned</span><span>${ACC.plus ? '<b>Xion+ active</b>' : 'No Xion+'}</span><button class="btn ghost small" id="accOrders">My orders</button><button class="btn ghost small" id="accVault">My locker</button></div>
+      <div class="acc-stats"><span><b>${own.length}</b> cosmetic${own.length === 1 ? '' : 's'} available</span><span>${ACC.plus ? '<b>Xion+ active</b>' : 'No Xion+'}</span><button class="btn ghost small" id="accOrders">My orders</button><button class="btn ghost small" id="accVault">My locker</button></div>
       ${EQUIP_SLOTS.map(([slot, label]) => {
         const items = own.map(id => cosItem(id)).filter(i => i && i.type === slot && !i.items)
         const worn = (ACC.equipped || {})[slot]
@@ -718,8 +720,8 @@
     if (!main || !signedIn()) return
     form.hidden = true
     main.hidden = false
-    const own = (ACC.owned || []).filter(id => { const i = cosItem(id); return i && i.type !== 'plus' })
-    main.innerHTML = `<div class="vault-who"><b>${esc(ACC.ign)}</b><span>signed in as ${esc(ACC.email)} · ${own.length} item${own.length === 1 ? '' : 's'}</span><button class="link" id="vaultAccOut">Sign out</button></div>
+    const own = (ACC.access || ACC.owned || []).filter(id => { const i = cosItem(id); return i && i.type !== 'plus' })
+    main.innerHTML = `<div class="vault-who"><b>${esc(ACC.ign)}</b><span>signed in as ${esc(ACC.email)} · ${own.length} available item${own.length === 1 ? '' : 's'}</span><button class="link" id="vaultAccOut">Sign out</button></div>
       ${EQUIP_SLOTS.map(([slot, label]) => {
         const items = own.map(id => cosItem(id)).filter(i => i && i.type === slot && !i.items)
         const worn = (ACC.equipped || {})[slot]
@@ -751,6 +753,8 @@
   // Signing in swaps the key form for the account's own locker, and back again.
   function syncVault () {
     if (!$('#vaultMain') || !$('#vaultForm')) return
+    window.XionAvailable = signedIn() ? ACC.access || ACC.owned || [] : []
+    decorate()
     if (signedIn()) return drawAccVault()
     $('#vaultMain').hidden = true
     $('#vaultForm').hidden = false
@@ -789,6 +793,7 @@
     addEventListener('xion:cart-add', e => {
       const id = e.detail
       if (!cosItem(id)) return toast('This look is included in Xion+ or the free launcher collection.')
+      if (signedIn() && (ACC.access || ACC.owned || []).includes(id)) { syncVault(); $('#vault').scrollIntoView({ behavior: 'smooth' }); toast('Already unlocked — choose it in your locker.'); return }
       if (!cart.includes(id)) { toggleCart(id) }
       const d = drawer('cartDrawer', 'Your cart'); renderCart(); openDrawer(d)
     })

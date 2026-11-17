@@ -17,7 +17,7 @@ import java.util.List;
 final class CosmeticsPanel {
 	private static final int TITLE = 24, CHIPS = 16, HEAD = TITLE + CHIPS + 4;
 	private static final int FW = 25, FH = 40, PITCH_X = 31, PITCH_Y = 46;
-	private static final String[] CATS = { "All", "Anime", "Animated", "Free", "Xion+" };
+	private static final String[] CATS = { "All", "New HD", "Anime", "Animated", "Free", "Xion+" };
 
 	/** What a click did. */
 	enum Click { NONE, PICKED, LOCKED }
@@ -30,9 +30,10 @@ final class CosmeticsPanel {
 
 	/** The capes shown for the current chip: Anime first, then everything else. */
 	private List<Cosmetics.Cape> visible() {
-		List<Cosmetics.Cape> anime = new ArrayList<>(), rest = new ArrayList<>();
+		List<Cosmetics.Cape> hd = new ArrayList<>(), anime = new ArrayList<>(), rest = new ArrayList<>();
 		for (Cosmetics.Cape c : Cosmetics.capes()) {
 			boolean keep = switch (cat) {
+				case "New HD" -> "HD Originals".equals(c.cat);
 				case "Anime" -> "Anime".equals(c.cat);
 				case "Animated" -> c.frames > 1;
 				case "Free" -> !c.pro();
@@ -40,11 +41,12 @@ final class CosmeticsPanel {
 				default -> true;
 			};
 			if (!keep) continue;
-			if ("Anime".equals(c.cat) && !"Anime".equals(cat)) anime.add(c);
+			if ("HD Originals".equals(c.cat)) hd.add(c);
+			else if ("Anime".equals(c.cat) && !"Anime".equals(cat)) anime.add(c);
 			else rest.add(c);
 		}
-		anime.addAll(rest);
-		return anime;
+		hd.addAll(anime); hd.addAll(rest);
+		return hd;
 	}
 
 	int height(int w) {
@@ -59,6 +61,7 @@ final class CosmeticsPanel {
 		boolean hoverNone = false;
 		int cols = cols(w);
 		String sel = Cosmetics.selectedId();
+		g.scissor(x - 2, y + HEAD - 4, x + w, y + h);
 		for (int i = -1; i < capes.size(); i++) {
 			int k = i + 1, cx = x + (k % cols) * PITCH_X, cy = top + HEAD + (k / cols) * PITCH_Y;
 			if (cy + FH < y || cy > y + h) continue;
@@ -72,8 +75,13 @@ final class CosmeticsPanel {
 			}
 			Cosmetics.Cape c = capes.get(i);
 			if (over) hover = c;
-			Object tex = Cosmetics.texture(c);
-			if (tex != null) g.blit(tex, cx + 1, cy + 1, FW, FH, Cosmetics.FACE_U, Cosmetics.FACE_V, Cosmetics.FACE_W, Cosmetics.FACE_H, Cosmetics.TEX_W, Cosmetics.TEX_H, Colors.alpha(0xFFFFFFFF, a));
+			Object tex = Cosmetics.previewTexture(c);
+			if (tex != null) {
+				int scale = Math.max(1, c.texWidth / 64);
+				g.blit(tex, cx + 1, cy + 1, FW, FH, c.preview ? 0 : scale, c.preview ? 0 : scale,
+					c.preview ? c.previewWidth : 10 * scale, c.preview ? c.previewHeight : 16 * scale,
+					c.preview ? c.previewWidth : c.texWidth, c.preview ? c.previewHeight : c.texHeight, Colors.alpha(0xFFFFFFFF, a));
+			}
 			if (!c.usable()) {
 				g.fill(cx + 1, cy + 1, cx + 1 + FW, cy + 1 + FH, Colors.alpha(0x99000000, a));
 				g.centeredText("XION+", cx + 1 + FW / 2f, cy + FH / 2f - 2, 0.6f, Colors.alpha(Colors.GOLD, a), false);
@@ -83,7 +91,8 @@ final class CosmeticsPanel {
 			if (c.id.equals(sel)) g.outline(cx - 1, cy - 1, FW + 4, FH + 4, Colors.alpha(c.pro() ? Colors.GOLD : Colors.ACCENT, a));
 		}
 
-		// header and chips, drawn last so the grid scrolls under them
+		g.endScissor();
+		// header and chips stay readable while the grid scrolls beneath the clipped viewport
 		g.fill(x, y, x + w, y + HEAD - 4, Colors.alpha(Colors.PANEL, a));
 		Cosmetics.Cape worn = Cosmetics.find(sel);
 		String line = hover != null ? hover.name + "  ·  " + hover.cat + (hover.pro() ? "  ·  Xion+" : "  ·  Free")

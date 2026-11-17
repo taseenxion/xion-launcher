@@ -5,6 +5,7 @@ const S = require('./_cos')
 const C = require('./catalog')
 // Animation frame count of every store cape, so game clients know which PNGs to fetch.
 const CAPES = Object.fromEntries(C.ITEMS.filter(i => i.type === 'cape').map(i => [i.id, i.frames]))
+const CAPE_FRAME_MS = Object.fromEntries(C.ITEMS.filter(i => i.type === 'cape').map(i => [i.id, i.frameMs || 110]))
 
 module.exports = async (req, res) => {
   try {
@@ -20,7 +21,7 @@ module.exports = async (req, res) => {
     // Every Xion Client polls this, so the CDN answers most of it (blob reads are metered).
     res.setHeader('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=600')
     res.setHeader('Access-Control-Allow-Origin', '*')
-    return res.status(200).json({ ...w, capes: CAPES })
+    return res.status(200).json({ ...w, capes: CAPES, capeFrameMs: CAPE_FRAME_MS })
   } catch (e) {
     console.error(e)
     return S.send(res, 500, { error: 'wear unavailable' })

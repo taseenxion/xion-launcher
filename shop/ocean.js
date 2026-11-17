@@ -8,7 +8,7 @@ const $ = s => document.querySelector(s)
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v))
 const images = new Map()
 function image(src) {
-  if (!images.has(src) && images.size >= 96) images.delete(images.keys().next().value)
+  if (!images.has(src) && images.size >= 64) images.delete(images.keys().next().value)
   if (!images.has(src)) images.set(src, new Promise((resolve, reject) => {
     const img = new Image(); img.onload = () => resolve(img); img.onerror = () => reject(new Error('Texture unavailable: ' + src)); img.src = src
   }))
@@ -17,7 +17,7 @@ function image(src) {
 const files = c => Array.from({ length: c.frames || 1 }, (_, f) => `assets/capes/${c.id}${c.frames > 1 ? '_' + f : ''}.png`)
 let motion = window.XionMotion !== false, visible = true, frame = 0, last = 0, progress = 0, smooth = 0
 let hero, inspector, modalOpen = false, selected = null, mode = 'back', heroIndex = 0
-const showcaseIds = ['an_tide', 'an_starfall', 'an_leafall']
+const showcaseIds = ['hd_fuji_starfall', 'hd_kirin_lightning_dragon', 'hd_demon_red']
 
 class Player {
   constructor(canvas, immersive = false) {
@@ -46,14 +46,14 @@ class Player {
     const frames = await Promise.all(files(c).map(image))
     if (request !== this.request) return
     if (frames.some(i => i.width !== i.height * 2)) throw new Error('Invalid cape UV texture')
-    this.frames = frames; this.currentFrame = -1
+    this.frames = frames; this.frameMs = c.frameMs || 110; this.currentFrame = -1
     await this.v.loadCape(frames[0], { backEquipment: mode === 'elytra' && !this.immersive ? 'elytra' : 'cape' })
     this.v.capeTexture.colorSpace = THREE.SRGBColorSpace; this.v.capeTexture.needsUpdate = true
     schedule()
   }
   tick(now, dt) {
     if (motion) this.v.animation?.update(this.v.playerObject, dt)
-    const f = motion ? Math.floor(now / 110) % Math.max(1, this.frames.length) : 0
+    const f = motion ? Math.floor(now / (this.frameMs || 110)) % Math.max(1, this.frames.length) : 0
     if (this.frames.length && f !== this.currentFrame && this.v.capeTexture) {
       this.currentFrame = f
       loadCapeToCanvas(this.v.capeCanvas, this.frames[f]); this.v.capeTexture.needsUpdate = true
@@ -209,6 +209,7 @@ function tick(now) {
 async function setShowcase() {
   const c = window.XionCapes?.find(c => c.id === showcaseIds[heroIndex % showcaseIds.length]) || { id: 'an_tide', name: 'Moon Tide', frames: 8 }
   $('#heroCapeName').textContent = c.name
+  $('#heroCapeSwitch small').textContent = `${c.texWidth >= 1024 ? 'HD · ' : 'LIVE · '}${c.frames} FRAMES`
   try { const [skin] = await Promise.all([hero?.skinReady, hero?.cape(c)]); if (!skin) throw new Error('Skin unavailable'); $('#sceneStatus').textContent = ''; $('#oceanCanvas').dataset.ready = 'true' } catch (e) { $('#sceneStatus').textContent = 'The cape preview is unavailable. Browse the collection below.'; console.warn(e) }
 }
 try {

@@ -110,7 +110,7 @@
 
   function paintSigned () {
     const body = $('#accxBody')
-    const own = acc.owned || []
+    const own = acc.access || acc.owned || []
     body.innerHTML = `<div class="accx-who"><div><b>${esc(acc.name || acc.ign)}</b><small>${esc(acc.email)} · linked to <b style="display:inline;color:#fff">${esc(acc.ign)}</b></small></div>
         <button class="accx-btn ghost" id="axOut">Sign out</button></div>
       <div class="accx-stats"><span><b>${own.length}</b> cosmetic${own.length === 1 ? '' : 's'} owned</span><span>Equipped cape: <b>${esc((byId((acc.equipped || {}).cape) || {}).name || 'none')}</b></span></div>

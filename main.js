@@ -85,7 +85,7 @@ app.whenReady().then(() => {
     return {
       signedIn: !!x.token, email: x.email || '', name: x.name || '', ign: x.ign || '',
       plus: Array.isArray(x.owned) && x.owned.includes(entitlements.PLUS_ID),
-      owned: x.owned || [], equipped: x.equipped || {}, at: x.at || 0
+      owned: x.owned || [], access: x.access || x.owned || [], equipped: x.equipped || {}, at: x.at || 0
     }
   }
   const ownedCapes = owned => (owned || []).filter(id => cosmetics.catalog().some(c => c.id === id))
@@ -93,9 +93,9 @@ app.whenReady().then(() => {
     const s = store.get().settings
     s.xion = {
       token, email: account.email, name: account.name, ign: account.ign,
-      owned: account.owned || [], equipped: account.equipped || {}, at: Date.now()
+      owned: account.owned || [], access: account.access || account.owned || [], equipped: account.equipped || {}, at: Date.now()
     }
-    s.ownedCapes = ownedCapes(account.owned)
+    s.ownedCapes = ownedCapes(account.access || account.owned)
     // Wear what the account has equipped, so the launcher and the game agree with the shop.
     const cape = account.equipped && account.equipped.cape
     if (cape && s.ownedCapes.includes(cape) && s.cape !== cape) {
@@ -120,7 +120,8 @@ app.whenReady().then(() => {
       const x = s.xion || {}
       if (!x.token) return
       const id = s.cape || ''
-      const accountItem = id && Array.isArray(x.owned) && x.owned.includes(id) ? id : ''
+      const available = x.access || x.owned || []
+      const accountItem = id && available.includes(id) ? id : ''
       const account = await xionAcc.equip(x.token, 'cape', accountItem)
       // Ignore an old response if the player signed out or picked something else while it travelled.
       const latest = store.get().settings

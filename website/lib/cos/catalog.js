@@ -10,6 +10,7 @@ const PRICE = {
   epic: { USD: 2.99, BDT: 360, INR: 240 },
   legendary: { USD: 4.99, BDT: 600, INR: 400 }
 }
+const HD = require('../../assets/capes/hd-collection.json')
 
 const ITEMS = [
   // ── Halloween ──
@@ -80,7 +81,9 @@ const ITEMS = [
   { id: 'an_ember', name: 'Ember Dusk', type: 'cape', rarity: 'rare', frames: 8, set: 'anime', desc: 'Burnt red sky, ash in the air, embers going up instead of down.' },
   { id: 'an_tide', name: 'Moon Tide', type: 'cape', rarity: 'epic', frames: 8, set: 'anime', desc: 'Cold sea at night, wave crests rolling under a moon.' },
   { id: 'an_eyes', name: 'Shadow Eyes', type: 'cape', rarity: 'legendary', frames: 8, set: 'anime', desc: 'Almost nothing, then two eyes open in the dark. Blinks on a loop.' },
-  { id: 'an_garden', name: 'Night Garden', type: 'cape', rarity: 'rare', frames: 8, set: 'anime', desc: 'Indigo garden, glowing flowers, fireflies between them.' }
+  { id: 'an_garden', name: 'Night Garden', type: 'cape', rarity: 'rare', frames: 8, set: 'anime', desc: 'Indigo garden, glowing flowers, fireflies between them.' },
+  ...HD.map(c => ({ id: c.id, name: c.name, type: 'cape', rarity: 'epic', set: 'hd_originals', frames: c.frames,
+    frameMs: c.frameMs, texWidth: c.texWidth, texHeight: c.texHeight, includedWithPlus: true, desc: c.description }))
 ]
 
 const SETS = [
@@ -91,8 +94,10 @@ const SETS = [
   { id: 'neon', name: 'Neon City', tag: 'Animated', color: '#f0abfc', accent: '#22d3ee', desc: 'Synthwave grid, cyber visor and mech wings.' },
   { id: 'xion', name: 'Xion Originals', tag: 'Signature', color: '#f472b6', accent: '#7c3aed', desc: 'The Xion crest cloaks and void wings. Our signature look.' },
   { id: 'sakura', name: 'Sakura Spring', tag: 'Pastel', color: '#f9a8d4', accent: '#86efac', desc: 'Blossoms, butterflies and drifting petals.' },
-  { id: 'anime', name: 'Anime Nocturne', tag: 'New', color: '#8b5cf6', accent: '#f472b6', desc: 'Nine hand-painted animated capes: sunrise over a torii gate, falling autumn leaves, neon rain, a moonlit wolf and more.' }
+  { id: 'anime', name: 'Anime Nocturne', tag: 'New', color: '#8b5cf6', accent: '#f472b6', desc: 'Nine hand-painted animated capes: sunrise over a torii gate, falling autumn leaves, neon rain, a moonlit wolf and more.' },
+  { id: 'hd_originals', name: 'HD Originals', tag: 'New HD', color: '#79b5ff', accent: '#ffd279', desc: 'Eight original 1024×512 animated capes with 16–24 frames. Included with Xion+, or available individually.' }
 ]
+SETS.sort((a, b) => Number(b.id === 'hd_originals') - Number(a.id === 'hd_originals'))
 
 // Bundles: all items of a set, about 40% off the separate prices.
 const BUNDLE_OFF = 0.4

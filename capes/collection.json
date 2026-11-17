@@ -1,0 +1,17 @@
+{
+  "collection": "HD Originals",
+  "set": "hd_originals",
+  "tier": "pro",
+  "rarity": "epic",
+  "includedWithPlus": true,
+  "capes": [
+    { "source": "demon_gray", "id": "hd_demon_gray", "name": "Ash Demon", "description": "Silver lightning, drifting sparks and a storm-gray demon cloak." },
+    { "source": "demon_red", "id": "hd_demon_red", "name": "Crimson Demon", "description": "Crimson lightning and glowing embers across a deep red cloak." },
+    { "source": "fuji_starfall", "id": "hd_fuji_starfall", "name": "Fuji Starfall", "description": "A snow-capped peak beneath shifting auroras and falling stars." },
+    { "source": "kirin_lightning_dragon", "id": "hd_kirin_lightning_dragon", "name": "Kirin Lightning Dragon", "description": "Electric dragon energy and bright lightning against a dark sky." },
+    { "source": "kitsune_flame", "id": "hd_kitsune_flame", "name": "Kitsune Flame", "description": "A glowing fox spirit surrounded by flowing flames." },
+    { "source": "kitsune_spirit", "id": "hd_kitsune_spirit", "name": "Kitsune Spirit", "description": "An ethereal fox spirit with flowing light and sparkling details." },
+    { "source": "koi_garden", "id": "hd_koi_garden", "name": "Koi Garden", "description": "A tranquil garden, glimmering water and beautifully animated koi." },
+    { "source": "sakura_moon", "id": "hd_sakura_moon", "name": "Sakura Moon", "description": "Soft moonlight and cherry-blossom petals in motion." }
+  ]
+}
