@@ -339,13 +339,16 @@ async function deployWebsite () {
   try { project = JSON.parse(fs.readFileSync(path.join(websiteDir, '.vercel', 'project.json'), 'utf8')) } catch {}
   const token = vercelToken()
   let restoreRoot = null
+  const projectRoute = project && project.projectId
+    ? `/v9/projects/${project.projectId}${project.orgId ? '?teamId=' + encodeURIComponent(project.orgId) : ''}`
+    : ''
 
   if (project && project.projectId && token) {
     try {
-      const p = await vercelApi(`/v9/projects/${project.projectId}`, 'GET', undefined, token)
+      const p = await vercelApi(projectRoute, 'GET', undefined, token)
       if (p.rootDirectory) {
         restoreRoot = p.rootDirectory
-        await vercelApi(`/v9/projects/${project.projectId}`, 'PATCH', { rootDirectory: null }, token)
+        await vercelApi(projectRoute, 'PATCH', { rootDirectory: null }, token)
         console.log(`Cleared Vercel Root Directory "${restoreRoot}" for the CLI upload; it is restored after the deploy.`)
       }
     } catch (e) {
@@ -363,7 +366,7 @@ async function deployWebsite () {
   } finally {
     if (restoreRoot) {
       try {
-        await vercelApi(`/v9/projects/${project.projectId}`, 'PATCH', { rootDirectory: restoreRoot }, token)
+        await vercelApi(projectRoute, 'PATCH', { rootDirectory: restoreRoot }, token)
         console.log(`Restored Vercel Root Directory "${restoreRoot}".`)
       } catch (e) {
         console.warn(`Could not restore Vercel Root Directory "${restoreRoot}":`, e.message)
