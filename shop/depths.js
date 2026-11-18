@@ -30,7 +30,15 @@ const files = c => Array.from({ length: c.frames || 1 }, (_, f) => `assets/capes
 
 let motion = window.XionMotion !== false
 let raf = 0, last = 0, modalOpen = false, mode = 'back'
-let depth = 0, depthSmooth = 0, lastScroll = scrollY, scrollVel = 0, stroke = 0
+let depth = 0, depthSmooth = 0, stroke = 0, dir = 1
+// Critically damped springs (Unity-style SmoothDamp): no overshoot, no jitter from wheel steps.
+const springs = { depth: { v: 0 }, stroke: { v: 0 }, pitch: { v: 0 }, yaw: { v: 0 } }
+function damp (cur, target, st, time, dt) {
+  const omega = 2 / Math.max(0.0001, time), x = omega * dt, exp = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x)
+  const change = cur - target, temp = (st.v + omega * change) * dt
+  st.v = (st.v - omega * temp) * exp
+  return target + (change + temp) * exp
+}
 
 // ── swimming: treading water when still, a head-first dive while the page scrolls ──
 class SwimDive extends PlayerAnimation {
@@ -72,7 +80,7 @@ function noiseTexture (seed = 1) {
       const v = Math.round(200 + n * 55); g.fillStyle = `rgb(${v},${v},${v})`; g.fillRect(x, y, 1, 1)
     }
   }
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.magFilter = t.minFilter = THREE.NearestFilter
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.magFilter = THREE.NearestFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true
   return t
 }
 const stoneMat = new THREE.MeshStandardMaterial({ map: noiseTexture(3), roughness: 0.95 })
@@ -103,7 +111,7 @@ class Player {
   constructor (canvas, { immersive = false } = {}) {
     this.canvas = canvas; this.immersive = immersive; this.frames = []; this.request = 0; this.currentFrame = -1
     const small = innerWidth < 760
-    this.v = new SkinViewer({ canvas, width: 300, height: 300, renderPaused: true, pixelRatio: Math.min(devicePixelRatio || 1, immersive ? (small ? 1 : 1.25) : 1.5), fov: immersive ? 40 : 38 })
+    this.v = new SkinViewer({ canvas, width: 300, height: 300, renderPaused: true, pixelRatio: Math.min(devicePixelRatio || 1, immersive ? (small ? 1.25 : 1.5) : 1.75), fov: immersive ? 40 : 38 })
     this.v.renderer.outputColorSpace = THREE.SRGBColorSpace
     this.v.globalLight.intensity = immersive ? 1.6 : 2.7
     this.v.cameraLight.intensity = immersive ? 0.9 : 0.75
@@ -160,6 +168,8 @@ class Ocean {
     // The diver's lamp: barely there near the surface, the only warm light in the abyss.
     this.lamp = new THREE.PointLight('#8ff7ff', 0, 90, 1.4); scene.add(this.lamp)
     this.world = new THREE.Group(); scene.add(this.world)
+    const aniso = Math.min(8, v.renderer.capabilities.getMaxAnisotropy())
+    for (const m of [stoneMat, plantMat, glowMat]) { m.map.anisotropy = aniso; m.map.needsUpdate = true }
     this.kelp = []; this.fish = []; this.jellies = []; this.vents = []
     this.buildSurface(); this.buildCliff(); this.buildShelf(); this.buildKelpForest(); this.buildMonument(); this.buildAbyss()
     this.buildFish(); this.buildSnow(); this.buildBubbles()
@@ -364,13 +374,15 @@ class Ocean {
     snow.needsUpdate = true; this.snow.material.opacity = lerp(0.35, 0.8, d)
 
     // Where the diver swims: right of the copy on wide screens, above it on phones.
-    const sx = mobile ? 4 : 31 + Math.sin(d * 7) * 3, sy = camY + (mobile ? 14 : -3) + 17 * (1 - smoothstep(0, 0.12, d)) + Math.sin(time * 0.9) * 0.9
+    const sx = mobile ? 4 : 31 + Math.sin(d * 7) * 3, sy = camY + (mobile ? 14 : -3) + 17 * (1 - smoothstep(0, 0.12, d)) + Math.sin(time * 0.7) * 0.6
     v.playerWrapper.position.set(sx, sy, mobile ? -10 : 0)
     v.playerWrapper.scale.setScalar(mobile ? 0.62 : 0.74)
     // Slowly turn to show the cape; pitch head-first while the page is scrolling.
-    v.playerWrapper.rotation.y = Math.PI * 0.82 + Math.sin(time * 0.32) * 0.85 + (dir < 0 ? 0 : s * 0.4)
-    v.playerWrapper.rotation.x = lerp(v.playerWrapper.rotation.x, dir < 0 ? -s * 0.5 : s * 1.05, Math.min(1, dt * 4))
-    v.camera.position.set(Math.sin(time * 0.13) * 1.5, camY + 2, 84)
+    const yaw = Math.PI * 0.86 + Math.sin(time * 0.21) * 0.32 + (dir < 0 ? -0.15 : 0.25) * s
+    v.playerWrapper.rotation.y = dt ? damp(v.playerWrapper.rotation.y, yaw, springs.yaw, 0.6, dt) : yaw
+    const pitch = dir < 0 ? -s * 0.45 : s * 0.95
+    v.playerWrapper.rotation.x = dt ? damp(v.playerWrapper.rotation.x, pitch, springs.pitch, 0.45, dt) : pitch
+    v.camera.position.set(Math.sin(time * 0.09) * 0.8, camY + 2, 84)
     v.camera.lookAt(0, camY + 2 + 24 * (1 - smoothstep(0, 0.12, d)), 0)
     this.lamp.position.set(sx + 4, sy + 14, 12); this.lamp.intensity = smoothstep(0.45, 0.95, d) * 420
 
@@ -404,24 +416,36 @@ function paintGauge (d) {
   if ($('#depthZone').textContent !== zone) $('#depthZone').textContent = zone
 }
 function schedule () { if (!raf && !document.hidden) raf = requestAnimationFrame(tick) }
+// Adaptive resolution: drop pixel ratio on slow GPUs, raise it again when frames are cheap.
+const perf = { frames: 0, time: 0, ratio: 0, max: 1 }
+function adapt (dt) {
+  if (!diver || !motion) return
+  perf.frames++; perf.time += dt
+  if (perf.frames < 90) return
+  const avg = perf.time / perf.frames; perf.frames = 0; perf.time = 0
+  const next = avg > 0.024 ? perf.ratio - 0.25 : avg < 0.0135 ? perf.ratio + 0.25 : perf.ratio
+  const clamped = clamp(next, 0.75, perf.max)
+  if (clamped !== perf.ratio) { perf.ratio = clamped; diver.v.renderer.setPixelRatio(clamped); diver.resize() }
+}
 function tick (now) {
   raf = 0
   const dt = Math.min(0.05, last ? (now - last) / 1000 : 0.016); last = now
-  // Scroll speed drives the dive: fast scrolling = head-first dive, stopping = treading water.
-  const dy = scrollY - lastScroll; lastScroll = scrollY
-  scrollVel = lerp(scrollVel, dy / Math.max(dt, 0.001), Math.min(1, dt * 6))
-  const target = clamp(Math.abs(scrollVel) / 1400)
-  stroke = lerp(stroke, motion ? target : 0, Math.min(1, dt * (target > stroke ? 5 : 1.6)))
-  depthSmooth = motion ? lerp(depthSmooth, depth, Math.min(1, dt * 5)) : depth
+  const max = Math.max(1, document.documentElement.scrollHeight - innerHeight)
+  if (motion) depthSmooth = damp(depthSmooth, depth, springs.depth, 0.28, dt)
+  else { depthSmooth = depth; springs.depth.v = 0 }
+  // Dive strength follows how fast the camera is actually descending (in page pixels per second).
+  const speed = springs.depth.v * max
+  if (Math.abs(speed) > 60) dir = speed < 0 ? -1 : 1
+  stroke = motion ? clamp(damp(stroke, clamp(Math.abs(speed) / 1600), springs.stroke, 0.35, dt)) : 0
   paintGauge(depthSmooth)
   const busy = modalOpen || document.documentElement.classList.contains('shop-lock')
   if (diver && !busy) {
-    diver.anim.stroke = stroke; diver.anim.dir = scrollVel < 0 ? -1 : 1
-    ocean.update(motion ? now / 1000 : 0, motion ? dt : 0, depthSmooth, stroke, diver.anim.dir)
-    diver.tick(now, dt); diver.v.render()
+    diver.anim.stroke = stroke; diver.anim.dir = dir
+    ocean.update(motion ? now / 1000 : 0, motion ? dt : 0, depthSmooth, stroke, dir)
+    diver.tick(now, dt); diver.v.render(); adapt(dt)
   }
   if (inspector && modalOpen) { inspector.tick(now, dt); inspector.v.controls.update(); inspector.v.render() }
-  const settling = Math.abs(depthSmooth - depth) > 0.0005 || stroke > 0.01
+  const settling = Math.abs(depthSmooth - depth) > 0.00005 || stroke > 0.005
   if ((motion && (diver || modalOpen)) || settling) schedule()
 }
 
@@ -436,6 +460,7 @@ async function dress (c) {
 
 try {
   diver = new Player($('#seaCanvas'), { immersive: true })
+  perf.ratio = perf.max = diver.v.renderer.getPixelRatio()
   ocean = new Ocean(diver)
   $('#seaCanvas').addEventListener('webglcontextlost', e => { e.preventDefault(); $('#sceneStatus').textContent = '3D paused. Your cape collection still works.' })
 } catch (e) {

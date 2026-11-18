@@ -22,6 +22,22 @@
   const reveal = new IntersectionObserver(entries => entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); reveal.unobserve(e.target) } }), { threshold: 0.08 })
   $$('.reveal').forEach(el => reveal.observe(el))
   const watch = root => $$('[data-anim]', root).forEach(el => io.observe(el))
+  // Thumbnails stay still until you point at them (or they sit in the featured slide), so the page
+  // never decodes dozens of frames at once. Frames are preloaded before the first swap: no flicker.
+  const preloaded = new Set()
+  function preload (img) {
+    const n = Number(img.dataset.frames), id = img.dataset.id
+    if (n < 2 || preloaded.has(id)) return
+    preloaded.add(id)
+    for (let f = 0; f < n; f++) { const i = new Image(); i.decoding = 'async'; i.src = face({ id, frames: n }, f) }
+  }
+  const HOT = '.pcard, .card, .tile, .fcapes button'
+  const heat = (box, on) => $$('[data-anim]', box).forEach(img => { if (on) preload(img); img.toggleAttribute('data-hot', on) })
+  document.addEventListener('pointerover', e => { const box = e.target.closest(HOT); if (box) heat(box, true) })
+  document.addEventListener('pointerout', e => { const box = e.target.closest(HOT); if (box && !box.contains(e.relatedTarget)) heat(box, false) })
+  document.addEventListener('focusin', e => { const box = e.target.closest(HOT); if (box) heat(box, true) })
+  document.addEventListener('focusout', e => { const box = e.target.closest(HOT); if (box) heat(box, false) })
+  const playing = img => img.hasAttribute('data-hot') || !!img.closest('.fslide.on')
 
   function setMotion (on) {
     motion = on
@@ -91,6 +107,7 @@
     featAt = (i + feat.length) % feat.length
     $$('.fslide').forEach(s => { const on = Number(s.dataset.i) === featAt; s.classList.toggle('on', on); s.setAttribute('aria-hidden', String(!on)) })
     $$('#featureDots button').forEach(b => b.classList.toggle('on', Number(b.dataset.fi) === featAt))
+    $$('.fslide.on [data-anim]').forEach(preload)
     clearTimeout(featTimer)
     featTimer = setTimeout(() => { if (motion && !document.hidden) setFeature(featAt + 1); else setFeature(featAt) }, 7000)
   }
@@ -263,7 +280,7 @@
     for (const img of live) {
       if (!img.isConnected) { live.delete(img); continue }
       const n = Number(img.dataset.frames)
-      if (n < 2) continue
+      if (n < 2 || !playing(img)) continue
       const f = Math.floor(time / Number(img.dataset.frameMs || 110)) % n
       if (img.dataset.frame !== String(f)) { img.dataset.frame = String(f); img.src = face({ id: img.dataset.id, frames: n }, f) }
     }

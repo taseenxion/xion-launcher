@@ -5,6 +5,8 @@
   --text: #f1fbf8; --dim: #a6c2c6; --line: rgba(176,238,226,.14);
   --glass: rgba(4, 28, 38, .62); --glass-2: rgba(6, 36, 48, .78);
   --gold: #f6cf7a; --depth: 0; --nav-h: 66px;
+  /* One content column for nav, tabs and sections, so every edge lines up. */
+  --wrap: 1240px; --gutter: clamp(20px, 4.5vw, 64px); --inset: max(var(--gutter), calc((100vw - var(--wrap)) / 2));
 }
 html { scroll-behavior: smooth; scroll-padding-top: 128px; }
 /* Fallback water (no WebGL / before the scene loads) darkens with depth too. */
@@ -26,7 +28,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
 main, .nav, .tabs, .foot { position: relative; z-index: 2; }
 
 /* depth gauge */
-.depth { position: fixed; z-index: 3; left: 22px; top: 50%; transform: translateY(-50%); display: grid; justify-items: start; gap: 8px; pointer-events: none; }
+.depth { position: fixed; z-index: 3; left: max(14px, calc(var(--inset) - 52px)); top: 50%; transform: translateY(-50%); display: grid; justify-items: start; gap: 8px; pointer-events: none; }
 .depth-track { position: relative; width: 4px; height: 34vh; border-radius: 4px; background: rgba(200,255,240,.14); overflow: visible; }
 .depth-track i { position: absolute; inset: 0; border-radius: 4px; transform-origin: top; background: linear-gradient(#d6fff3, #5fd6c6 50%, #3a6bd6); transform: scaleY(0); }
 .depth-track b { position: absolute; left: 50%; width: 12px; height: 12px; border-radius: 50%; transform: translate(-50%, -50%); background: #e9fffa; box-shadow: 0 0 0 4px rgba(150,255,230,.18), 0 0 18px #9cffe5; top: 0; }
@@ -34,13 +36,14 @@ main, .nav, .tabs, .foot { position: relative; z-index: 2; }
 .depth-zone { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #bfe4df; writing-mode: vertical-rl; transform: rotate(180deg); max-height: 30vh; }
 
 /* ── nav + section tabs ── */
-.nav { position: sticky; top: 0; z-index: 40; min-height: var(--nav-h); padding: 10px clamp(16px, 4vw, 52px); background: rgba(3,24,33,.72); border-bottom: 1px solid var(--line); backdrop-filter: blur(18px) saturate(1.3); }
+.nav { position: sticky; top: 0; z-index: 40; min-height: var(--nav-h); padding: 10px var(--inset); background: #03171f; border-bottom: 1px solid var(--line); }
+.nav.shrunk { padding: 10px var(--inset); background: #03171f; backdrop-filter: none; }
 .nav.shrunk { background: rgba(3,20,28,.86); }
 .brand em { color: #89d9c8; }
 .nav-acts { margin-left: auto; }
 .nav-btn { background: rgba(207,239,226,.06); border-radius: 9px; }
 .nav-btn .badge, .nav-btn b.badge { background: #b5edda; }
-.tabs { position: sticky; top: var(--nav-h); z-index: 39; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; padding: 8px clamp(16px, 4vw, 52px); background: rgba(3,22,30,.55); backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); }
+.tabs { position: sticky; top: var(--nav-h); z-index: 39; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; padding: 8px var(--inset); background: #041b24; border-bottom: 1px solid var(--line); }
 .tabs::-webkit-scrollbar { display: none; }
 .tabs a { flex: none; font-size: 13px; color: var(--dim); padding: 8px 14px; border-radius: 999px; transition: color .25s, background .25s; }
 .tabs a:hover { color: var(--text); background: rgba(190,255,236,.07); }
@@ -57,7 +60,8 @@ main, .nav, .tabs, .foot { position: relative; z-index: 2; }
 .grad-gold { background: linear-gradient(110deg, #ffe7a6, #f3b94b, #ffe7a6); -webkit-background-clip: text; background-clip: text; color: transparent; background-size: 200% auto; animation: shimmer 6s linear infinite; }
 @keyframes shimmer { to { background-position: 200% center; } }
 
-section { position: relative; max-width: 1320px; padding: clamp(40px, 7vh, 84px) clamp(16px, 4vw, 52px) clamp(40px, 7vh, 84px) clamp(64px, 6vw, 96px); }
+section { position: relative; max-width: none; margin: 0; padding: clamp(44px, 7vh, 88px) var(--inset); }
+.foot { padding-inline: var(--inset); }
 
 /* ── hero ── */
 .hero { display: grid; grid-template-columns: minmax(0, 560px) 1fr; grid-template-rows: auto 1fr; align-content: start; gap: 26px 40px; min-height: calc(100svh - var(--nav-h) - 50px); padding-top: clamp(40px, 8vh, 90px); }
@@ -65,7 +69,7 @@ section { position: relative; max-width: 1320px; padding: clamp(40px, 7vh, 84px)
 .eyebrow { display: inline-flex; align-items: center; gap: 10px; font: 600 11px 'Monocraft', monospace; letter-spacing: .16em; color: #dffcf5; text-shadow: 0 2px 10px #0006; }
 .eyebrow i { width: 8px; height: 8px; border-radius: 50%; background: #9dffe2; box-shadow: 0 0 0 4px rgba(157,255,226,.2); animation: ping 2.2s ease-out infinite; }
 @keyframes ping { 50% { box-shadow: 0 0 0 9px rgba(157,255,226,0); } }
-.hero h1 { font-size: clamp(46px, 7.2vw, 96px); line-height: .94; margin: 18px 0 18px; letter-spacing: -.02em; text-shadow: 0 8px 40px rgba(0,30,40,.45); }
+.hero h1 { font-size: clamp(44px, 6vw, 84px); line-height: .96; margin: 18px 0 18px; letter-spacing: -.01em; text-shadow: 0 8px 40px rgba(0,30,40,.45); }
 .shine { background: linear-gradient(100deg, #e6fff8 10%, #7fe9d6 35%, #8ec5ff 55%, #e6fff8 80%); background-size: 220% auto; -webkit-background-clip: text; background-clip: text; color: transparent; animation: shimmer 7s linear infinite; }
 .lede { font-size: clamp(15px, 1.3vw, 17px); color: #d6eeeb; line-height: 1.65; max-width: 520px; margin: 0; text-shadow: 0 2px 14px rgba(0,20,30,.5); }
 .lede b { color: #fff; }
@@ -107,7 +111,7 @@ section { position: relative; max-width: 1320px; padding: clamp(40px, 7vh, 84px)
 .link-more { flex: none; font-size: 13.5px; font-weight: 600; color: #d4fff1; padding: 9px 14px; border-radius: 10px; background: var(--glass); border: 1px solid var(--line); }
 .link-more:hover { background: rgba(10,50,60,.8); }
 
-.strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(196px, 216px); gap: 16px; overflow-x: auto; padding: 6px 4px 18px; scroll-snap-type: x mandatory; scrollbar-width: thin; scrollbar-color: #5fbfae55 transparent; }
+.strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(196px, 216px); gap: 16px; overflow-x: auto; padding: 6px 2px 18px; margin-inline: -2px; scroll-snap-type: x proximity; scroll-behavior: smooth; overscroll-behavior-x: contain; scrollbar-width: thin; scrollbar-color: #5fbfae55 transparent; }
 .pcard { scroll-snap-align: start; display: flex; flex-direction: column; border-radius: 16px; overflow: hidden; background: var(--glass-2); border: 1px solid var(--line); transition: transform .4s var(--ease), border-color .4s, box-shadow .4s; }
 .pcard:hover { transform: translateY(-6px); border-color: rgba(160,255,230,.4); box-shadow: 0 26px 50px -28px #000; }
 .pshot { position: relative; aspect-ratio: 1; display: grid; place-items: center; border: 0; padding: 22px; cursor: pointer; background: radial-gradient(ellipse at 50% 35%, rgba(90,210,200,.28), transparent 70%), linear-gradient(180deg, rgba(20,80,90,.5), rgba(4,26,36,.2)); }
@@ -207,7 +211,7 @@ section { position: relative; max-width: 1320px; padding: clamp(40px, 7vh, 84px)
 .foot { background: rgba(1,10,16,.75); border-top-color: var(--line); }
 
 /* what the diver is wearing */
-.wearing { position: fixed; z-index: 30; right: 20px; bottom: 20px; display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 10px; border-radius: 14px; background: rgba(3,26,35,.82); border: 1px solid var(--line); backdrop-filter: blur(12px); box-shadow: 0 18px 40px -20px #000; }
+.wearing { position: fixed; z-index: 30; right: 20px; bottom: 20px; display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 10px; border-radius: 14px; background: rgba(3,26,35,.94); border: 1px solid var(--line); box-shadow: 0 18px 40px -20px #000; }
 .wearing.pulse { animation: pulse .7s var(--ease); }
 @keyframes pulse { 40% { transform: scale(1.06); border-color: #9ff2dc; } }
 .wear-swatch { width: 26px; height: 42px; border-radius: 6px; background: center / contain no-repeat rgba(160,255,230,.08); image-rendering: pixelated; }
@@ -258,7 +262,7 @@ html.preview-lock { overflow: hidden; }
   .nav-acts .nav-btn { padding: 8px; }
   #motionBtn { display: none; }
   .tabs { padding: 7px 12px; }
-  section { padding: 34px 16px; }
+  section { padding: 34px var(--inset); }
   .hero { grid-template-columns: 1fr; padding-top: 46vh; min-height: 0; }
   .hero h1 { font-size: clamp(42px, 13vw, 60px); }
   .hero-copy, .feature { grid-column: 1; }
@@ -284,3 +288,18 @@ html.preview-lock { overflow: hidden; }
   main { padding-bottom: 70px; }
   .sea-vignette { background: linear-gradient(180deg, rgba(2,16,24,.05), rgba(2,16,24,.4) 45%, rgba(2,16,24,.45)); }
 }
+
+/* Smoothness: no live blur over the moving ocean, GPU-friendly hover motion only. */
+.card .pro, .card .free, .lightbox, .dr-back, .sh-back { backdrop-filter: none; }
+.pcard, .tile, .card { will-change: auto; transition: transform .45s var(--ease), border-color .35s, box-shadow .45s; }
+.pcard:hover, .tile:hover, .card:hover { transform: translate3d(0, -5px, 0); }
+.pshot img, .tile-art img, .card .shot img { backface-visibility: hidden; }
+.pprice, .depth-m, .cmp-row em { font-variant-numeric: tabular-nums; }
+.row-head, .plus-head { margin-bottom: 24px; }
+.row-head h2, .plus-head h2 { letter-spacing: -.01em; }
+@media (max-width: 1100px) { .depth-zone { display: none; } }
+
+/* Every cape thumbnail fills the same box, whatever the size of its source image. */
+.pshot, .tile-art { position: relative; display: block; }
+.pshot img, .tile-art img { position: absolute; inset: 16px; width: calc(100% - 32px); height: calc(100% - 32px); object-fit: contain; }
+.tile-art img { inset: 10px; width: calc(100% - 20px); height: calc(100% - 20px); }
