@@ -8,7 +8,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 source = json.loads((ROOT / "capes/collection.json").read_text())
 records = json.loads((ROOT / "src/assets/capes/hd-collection.json").read_text())
-assert len(records) == 8 and sum(c["frames"] for c in records) == 152
+assert len(records) == 19 and sum(c["frames"] for c in records) == 536
 for c in records:
     spec = next(s for s in source["capes"] if s["id"] == c["id"])
     file = ROOT / "capes" / (spec["source"] + "_spritesheet.png")
@@ -34,5 +34,5 @@ for c in records:
             assert (ROOT / site / "assets/capes" / name).read_bytes() == path.read_bytes()
 for site in ["src", "website", "shop", "store"]:
     catalog = json.loads((ROOT / site / "assets/capes/capes.json").read_text())
-    assert len(catalog) == 144 and len({c["id"] for c in catalog}) == 144
-print("PASS: 8 HD capes, 152 lossless frames, original timings, matching cape UVs and all distributed assets")
+    assert len(catalog) == 155 and len({c["id"] for c in catalog}) == 155
+print("PASS: 19 HD capes, 536 lossless frames, original timings, matching cape UVs and all distributed assets")

@@ -95,7 +95,7 @@ const SETS = [
   { id: 'xion', name: 'Xion Originals', tag: 'Signature', color: '#f472b6', accent: '#7c3aed', desc: 'The Xion crest cloaks and void wings. Our signature look.' },
   { id: 'sakura', name: 'Sakura Spring', tag: 'Pastel', color: '#f9a8d4', accent: '#86efac', desc: 'Blossoms, butterflies and drifting petals.' },
   { id: 'anime', name: 'Anime Nocturne', tag: 'New', color: '#8b5cf6', accent: '#f472b6', desc: 'Nine hand-painted animated capes: sunrise over a torii gate, falling autumn leaves, neon rain, a moonlit wolf and more.' },
-  { id: 'hd_originals', name: 'HD Originals', tag: 'New HD', color: '#79b5ff', accent: '#ffd279', desc: 'Eight original 1024×512 animated capes with 16–24 frames. Included with Xion+, or available individually.' }
+  { id: 'hd_originals', name: 'HD Originals', tag: 'New HD', color: '#79b5ff', accent: '#ffd279', desc: 'Nineteen original 1024×512 animated capes with 16–48 frames. Included with Xion+, or available individually.' }
 ]
 SETS.sort((a, b) => Number(b.id === 'hd_originals') - Number(a.id === 'hd_originals'))
 

@@ -14,7 +14,7 @@ mock('website/lib/cos/_cos.js', {
 const A = require('../website/lib/acc')
 const C = require('../website/lib/cos/catalog')
 const hd = C.ITEMS.filter(i => i.set === 'hd_originals')
-assert.equal(hd.length, 8)
+assert.equal(hd.length, 19)
 assert(hd.every(i => i.price.USD === 2.99 && i.price.BDT === 360 && i.price.INR === 240))
 const account = { id: 'test', email: 'test@example.invalid', name: 'Test', ign: 'CapeTest', owned: ['xion_plus'], equipped: {} }
 ;(async () => {

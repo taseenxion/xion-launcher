@@ -288,12 +288,12 @@
   $$('a[download]').forEach(a => a.addEventListener('click', () => toast('Download starting…')))
 
   /* ---------- primary download follows the visitor's OS ---------- */
-  const RELEASES = 'https://github.com/taseenxion/xion-launcher/releases/download/v1.27.1/'
+  const RELEASES = 'https://github.com/taseenxion/xion-launcher/releases/download/v2.0.0/'
   const platform = ((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || navigator.userAgent || '')
   const BUILD = {
-    windows: { href: RELEASES + 'Xion-Launcher-Setup-1.27.1.exe', label: 'Download for Windows', meta: 'Installer &middot; 141 MB &middot; v1.27.1' },
-    linux: { href: RELEASES + 'Xion-Launcher-1.27.1-linux-x86_64.AppImage', label: 'Download for Linux', meta: 'AppImage &middot; 146 MB &middot; v1.27.1' },
-    mac: { href: RELEASES + 'Xion-Launcher-Setup-1.27.1.exe', label: 'Download for Windows', meta: 'Windows and Linux builds &middot; macOS not yet' }
+    windows: { href: RELEASES + 'Xion-Launcher-Setup-2.0.0.exe', label: 'Download for Windows', meta: 'Installer &middot; 185 MB &middot; v2.0.0' },
+    linux: { href: RELEASES + 'Xion-Launcher-2.0.0-linux-x86_64.AppImage', label: 'Download for Linux', meta: 'AppImage &middot; 192 MB &middot; v2.0.0' },
+    mac: { href: RELEASES + 'Xion-Launcher-Setup-2.0.0.exe', label: 'Download for Windows', meta: 'Windows and Linux builds &middot; macOS not yet' }
   }
   const build = BUILD[/linux/i.test(platform) ? 'linux' : /mac|iphone|ipad/i.test(platform) ? 'mac' : 'windows']
   $$('[data-os-dl]').forEach(a => {
