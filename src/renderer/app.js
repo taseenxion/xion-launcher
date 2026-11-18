@@ -1415,25 +1415,18 @@ function applyTheme (id, animate) {
   const t = themeState.themes.find(x => x.id === id) || themeState.themes[0]
   if (!t) return
   const root = document.documentElement
-  const set = () => {
-    root.style.setProperty('--accent', t.accent)
-    root.style.setProperty('--accent-2', t.accent2)
-    root.style.setProperty('--bg', t.bg)
-    for (const l of ['sky', 'far', 'mid', 'near', 'front', 'fog']) root.style.setProperty('--img-' + l, `url(bg/${t.id}/${l}.webp)`)
-    root.style.setProperty('--img-full', `url(bg/${t.id}/full.jpg)`)
-    root.dataset.theme = t.id
-  }
-  const scene = $('#scene')
-  if (!animate || !scene) return set()
-  scene.classList.add('swap')
-  setTimeout(() => { set(); requestAnimationFrame(() => scene.classList.remove('swap')) }, 420)
+  root.style.setProperty('--accent', t.accent)
+  root.style.setProperty('--accent-2', t.accent2)
+  root.dataset.theme = t.id
+  // The black hole's disk glides to the new colours on its own; no fade needed.
+  heroScene.setTint(t.accent, t.accent2)
 }
 
 function renderThemes () {
   $('#themeGrid').innerHTML = themeState.themes.map(t => {
     const locked = t.premium && !themeState.premium
     const tag = t.id === themeState.current ? '<span class="t-tag cur">IN USE</span>' : locked ? '<span class="t-tag lock">XION+</span>' : ''
-    return `<button class="theme ${t.id === themeState.current ? 'on' : ''} ${locked ? 'locked' : ''}" data-theme="${t.id}" style="--t-accent:${t.accent};background-image:url(bg/${t.id}/full.jpg)">
+    return `<button class="theme ${t.id === themeState.current ? 'on' : ''} ${locked ? 'locked' : ''}" data-theme="${t.id}" style="--t-accent:${t.accent};--t-accent-2:${t.accent2}">
       ${tag}<span class="t-meta"><span><b>${esc(t.name)}</b><small>${esc(t.blurb)}</small></span><span class="t-dots"><i style="background:${t.accent}"></i><i style="background:${t.accent2}"></i></span></span>
     </button>`
   }).join('')

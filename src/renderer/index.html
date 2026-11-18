@@ -5,9 +5,10 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' https: data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:; script-src 'self'; connect-src 'self'">
   <title>Xion Launcher</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600&family=Inter:wght@400;500;600&family=Allura&family=JetBrains+Mono:wght@400;500&family=Silkscreen&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600&family=Allura&family=JetBrains+Mono:wght@400;500&family=Silkscreen&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="intro.css">
+  <link rel="stylesheet" href="cosmos.css">
 </head>
 <body data-page="play">
   <div class="splash" id="splash">
@@ -17,17 +18,11 @@
     <div class="splash-bar"><i></i></div>
   </div>
 
-  <!-- Living backdrop: layered mountains with parallax, drifting fog and twinkling stars -->
+  <!-- Backdrop: a live black hole (blackhole.js) -->
   <div class="scene" id="scene">
-    <div class="layer sky" data-depth="6"></div>
     <canvas id="heroCanvas"></canvas>
-    <div class="layer far" data-depth="12"></div>
-    <div class="fog fog-a"><i></i></div>
-    <div class="layer mid" data-depth="20"></div>
-    <div class="layer near" data-depth="30"></div>
-    <div class="fog fog-b"><i></i></div>
-    <div class="layer front" data-depth="44"></div>
     <div class="shade"></div>
+    <div class="grain"></div>
   </div>
 
   <div class="app">
@@ -248,7 +243,7 @@
         <div class="page-head"><div><span class="eyebrow">Preferences</span><h1>Settings</h1><p class="muted">Performance, game window and storage · Xion Launcher <span id="appVersion"></span></p></div></div>
         <div class="card theme-card">
           <div class="theme-head">
-            <div><h3>Theme</h3><p class="muted small">Changes the launcher and the game: colours, menus and the mountain backdrop.</p></div>
+            <div><h3>Theme</h3><p class="muted small">Colours the black hole here, and the menus, colours and mountain backdrop in game.</p></div>
           </div>
           <div class="theme-grid" id="themeGrid"></div>
         </div>
@@ -347,7 +342,7 @@
   <div class="toasts" id="toasts"></div>
 
   <script src="vendor/skinview3d.bundle.js"></script>
-  <script src="hero.js"></script>
+  <script src="blackhole.js"></script>
   <script src="app.js"></script>
   <script src="intro.js"></script>
 </body>
