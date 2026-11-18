@@ -774,6 +774,9 @@
     if (x.status === 'fulfilled') CX = x.value
     if (c.status === 'fulfilled') { CC = c.value; window.XionCatalog = CC; cart = cart.filter(id => cosItem(id)) }
     else console.warn('cosmetics config unavailable:', c.reason?.message)
+    // Card prices on the strips in app.js use the same currency as the cart.
+    window.XionMoney = id => { const i = CC && CC.items.find(x => x.id === id); return i ? money(CUR, i.price[CUR]) : '' }
+    if (CC) dispatchEvent(new CustomEvent('xion:catalog', { detail: CC }))
     if (CX?.pay?.bkash === '' && !$('#payWarn')?.dataset.init) { /* number is set from the admin panel */ }
     decorate()
     renderCart()
