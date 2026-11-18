@@ -202,6 +202,22 @@ public final class Gfx {
 
 	// ---- helpers built on the primitives ----
 
+	/** Small capitals with 1px tracking: the in-game twin of the launcher's mono labels. */
+	public void label(String s, int x, int y, int color) {
+		int cx = x;
+		for (char c : s.toUpperCase(java.util.Locale.ROOT).toCharArray()) {
+			String ch = String.valueOf(c);
+			text(ch, cx, y, color, false);
+			cx += font.width(ch) + 1;
+		}
+	}
+
+	public int labelWidth(String s) {
+		int w = 0;
+		for (char c : s.toUpperCase(java.util.Locale.ROOT).toCharArray()) w += font.width(String.valueOf(c)) + 1;
+		return Math.max(0, w - 1);
+	}
+
 	/** Filled rectangle with trimmed corners — reads as rounded at GUI scale. */
 	public void rounded(int x, int y, int w, int h, int color) {
 		if (w <= 2 || h <= 2 || net.xion.client.XionConfig.launcher.pvp) {

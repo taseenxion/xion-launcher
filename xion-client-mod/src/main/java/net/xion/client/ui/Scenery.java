@@ -8,35 +8,27 @@ import net.xion.client.compat.Ids;
 import java.util.Random;
 
 /**
- * The Xion backdrop, shared with the launcher: a moonlit mountain range in layers that drift slowly,
- * follow the mouse with gentle parallax, with fog rolling between the ridges, twinkling stars,
- * the odd shooting star and light snow. Textures are linear-filtered (see the .mcmeta files).
+ * The Xion backdrop, shared with the launcher: the same black hole, pre-rendered from the
+ * launcher's shader into a seamless 40-frame loop (tools/render-blackhole.js). Neighbouring frames
+ * are crossfaded so the disk turns smoothly at any frame rate. The frames are neutral ivory and
+ * are tinted with the launcher theme here. The view breathes slowly and follows the mouse a
+ * little, with a few close stars drifting in front for depth.
  */
 public final class Scenery {
-	private static final int TW = 1280, TH = 720;
-	private static final Object SKY = Ids.of("xionclient", "textures/gui/bg/sky.png");
-	private static final Object FAR = Ids.of("xionclient", "textures/gui/bg/far.png");
-	private static final Object MID = Ids.of("xionclient", "textures/gui/bg/mid.png");
-	private static final Object NEAR = Ids.of("xionclient", "textures/gui/bg/near.png");
-	private static final Object FRONT = Ids.of("xionclient", "textures/gui/bg/front.png");
-	private static final Object FOG = Ids.of("xionclient", "textures/gui/bg/fog.png");
-
-	private static final Particles SNOW = new Particles(70);
-	private static final float[][] STARS = new float[48][];
+	private static final int FRAMES = 40, TW = 768, TH = 432;
+	private static final float FRAME_SECONDS = 0.4f;
+	private static final Object[] HOLE = new Object[FRAMES];
+	private static final float[][] STARS = new float[36][];
 	private static float px, py;
 	private static long last;
-	private static double meteorAt = 5, meteorX, meteorY;
 
 	static {
-		Random r = new Random(7);
-		for (int i = 0; i < STARS.length; i++) STARS[i] = new float[]{r.nextFloat(), r.nextFloat() * 0.42f, r.nextFloat() * 6.28f, 0.5f + r.nextFloat() * 1.4f};
+		for (int i = 0; i < FRAMES; i++) HOLE[i] = Ids.of("xionclient", String.format("textures/gui/hole/f%02d.png", i));
+		Random r = new Random(11);
+		for (int i = 0; i < STARS.length; i++) STARS[i] = new float[]{r.nextFloat(), r.nextFloat(), r.nextFloat() * 6.28f, 0.4f + r.nextFloat() * 1.2f, 0.4f + r.nextFloat() * 0.6f};
 	}
 
 	private Scenery() {}
-
-	private static Object theme(String layer, Object fallback) {
-		return net.xion.client.compat.ThemeTextures.layer(layer, fallback);
-	}
 
 	public static void draw(Gfx g, float alpha) {
 		int w = g.width(), h = g.height();
@@ -47,88 +39,50 @@ public final class Scenery {
 		float dt = last == 0 ? 0 : Math.min(0.1f, (now - last) / 1e9f);
 		last = now;
 		// Critically damped follow, so the parallax glides instead of snapping to the cursor.
-		float k = 1f - (float) Math.exp(-dt * 2.2f);
+		float k = 1f - (float) Math.exp(-dt * 1.8f);
 		px += (float) (mx - px) * k;
 		py += (float) (my - py) * k;
 		double t = now / 1e9;
 
-		g.fill(0, 0, w, h, Colors.alpha(0xFF06080C, alpha));
-		layer(g, theme("sky", SKY), w, h, 6, 90, 0.0, alpha);
-		stars(g, w, h, t, alpha);
-		layer(g, theme("far", FAR), w, h, 12, 70, 1.3, alpha);
-		fog(g, w, h, t, 160, -0.09f, 12, 0.75f * alpha);
-		layer(g, theme("mid", MID), w, h, 20, 56, 2.1, alpha);
-		layer(g, theme("near", NEAR), w, h, 30, 46, 3.4, alpha);
-		fog(g, w, h, t, 100, 0.06f, 30, 0.5f * alpha);
-		layer(g, theme("front", FRONT), w, h, 44, 38, 4.2, alpha);
+		g.fill(0, 0, w, h, Colors.alpha(0xFF000000, alpha));
 
-		g.push();
-		g.scale(0.5f);
-		SNOW.draw(g, w * 2, h * 2, alpha * 0.7f);
-		g.pop();
-
-		g.vGradient(0, 0, w, h / 4, Colors.alpha(0x8C05060A, alpha), 0x0005060A);
-		g.vGradient(0, h * 3 / 5, w, h - h * 3 / 5, 0x0005060A, Colors.alpha(0xB305060A, alpha));
-	}
-
-	private static float base(int w, int h) {
-		return Math.max(w, h * 16f / 9f);
-	}
-
-	/** One ridge layer: slow breathing drift plus mouse parallax ({@code depth} is in launcher pixels). */
-	private static void layer(Gfx g, Object tex, int w, int h, float depth, double period, double seed, float alpha) {
-		float base = base(w, h);
-		double ph = Math.PI * 2 * (System.nanoTime() / 1e9) / period + seed;
-		float s = 1.03f + 0.015f * (float) Math.sin(ph);
+		// Cover the screen at 16:9, breathing very slightly and leaning away from the cursor.
+		float base = Math.max(w, h * 16f / 9f);
+		float s = 1.05f + 0.012f * (float) Math.sin(t / 9.0);
 		float dw = base * s, dh = dw * 9f / 16f;
-		float unit = w / 1400f;
-		float x = (w - dw) / 2f + 0.006f * base * (float) Math.sin(ph * 0.7) - px * depth * unit;
-		float y = h - dh + dh * 0.012f - py * depth * 0.5f * unit;
+		float unit = w / 900f;
+		float x = (w - dw) / 2f - px * 10 * unit;
+		float y = (h - dh) / 2f - py * 6 * unit;
+		double f = t / FRAME_SECONDS;
+		int i = (int) (Math.floor(f) % FRAMES);
+		float blend = (float) (f - Math.floor(f));
+		// Ivory frames take the theme accent, softened so the disk stays luminous.
+		int tint = Colors.lerp(0xFFFFFFFF, Colors.ACCENT, 0.55f);
 		g.push();
 		g.translate(x, y);
-		g.blit(tex, 0, 0, Math.round(dw), Math.round(dh), 0, 0, TW, TH, TW, TH, Colors.alpha(0xFFFFFFFF, alpha));
+		g.scale(dw / TW);
+		g.blit(HOLE[i], 0, 0, TW, TH, 0, 0, TW, TH, TW, TH, Colors.alpha(tint, alpha));
+		g.blit(HOLE[(i + 1) % FRAMES], 0, 0, TW, TH, 0, 0, TW, TH, TW, TH, Colors.alpha(tint, alpha * blend));
 		g.pop();
+
+		stars(g, w, h, t, alpha);
+
+		// Quiet the edges so menus read cleanly: darker at the top and bottom, and on the left.
+		g.vGradient(0, 0, w, h / 5, Colors.alpha(0x99000000, alpha), 0x00000000);
+		g.vGradient(0, h * 3 / 5, w, h - h * 3 / 5, 0x00000000, Colors.alpha(0xB8000000, alpha));
+		g.hGradient(0, 0, w / 2, h, Colors.alpha(0x8C000000, alpha), 0x00000000);
 	}
 
-	/** Horizontally tiling fog band scrolling left, drawn as two copies of the texture. */
-	private static void fog(Gfx g, int w, int h, double t, double period, float yShift, float depth, float alpha) {
-		float base = base(w, h) * 1.05f;
-		float dw = base, dh = dw * 9f / 16f;
-		float off = (float) ((t / period) % 1.0) * dw;
-		float x = (w - dw) / 2f - off - px * depth * (w / 1400f);
-		float y = h - dh + yShift * dh;
-		int iw = Math.round(dw), ih = Math.round(dh);
-		for (int i = 0; i < 2; i++) {
-			g.push();
-			g.translate(x + i * dw, y);
-			g.blit(theme("fog", FOG), 0, 0, iw, ih, 0, 0, TW, TH, TW, TH, Colors.alpha(0xFFFFFFFF, alpha));
-			g.pop();
-		}
-	}
-
+	/** Close stars that twinkle and drift with stronger parallax than the black hole behind them. */
 	private static void stars(Gfx g, int w, int h, double t, float alpha) {
 		g.push();
 		g.scale(0.5f);
 		int W = w * 2, H = h * 2;
-		for (float[] s : STARS) {
-			float a = (float) Math.pow(Math.abs(Math.sin(s[2] + t * s[3])), 3) * alpha;
+		for (float[] st : STARS) {
+			float a = (float) Math.pow(Math.abs(Math.sin(st[2] + t * st[3] * 0.6)), 3) * st[4] * alpha;
 			if (a < 0.03f) continue;
-			int x = (int) (s[0] * W - px * 12 * (w / 1400f)), y = (int) (s[1] * H);
-			g.fill(x, y, x + 1, y + 1, Colors.alpha(0xFFE1E9FF, a));
-		}
-		// An occasional shooting star across the upper sky.
-		double life = t - meteorAt;
-		if (life > 0.9) {
-			meteorAt = t + 7 + Math.random() * 10;
-			meteorX = 0.25 + Math.random() * 0.6;
-			meteorY = 0.05 + Math.random() * 0.15;
-		} else if (life >= 0) {
-			float fade = (float) Math.sin(Math.min(1, life / 0.9) * Math.PI) * alpha;
-			double hx = meteorX * W - life * W * 0.22, hy = meteorY * H + life * H * 0.14;
-			for (int i = 0; i < 26; i++) {
-				int x = (int) (hx + i * 2.4), y = (int) (hy - i * 1.5);
-				g.fill(x, y, x + 1, y + 1, Colors.alpha(0xFFEBF0FF, fade * (1 - i / 26f)));
-			}
+			int x = (int) (st[0] * W - px * 34 * (w / 900f)), y = (int) (st[1] * H - py * 20 * (w / 900f));
+			g.fill(x, y, x + 1, y + 1, Colors.alpha(0xFFF2EEE6, a));
 		}
 		g.pop();
 	}

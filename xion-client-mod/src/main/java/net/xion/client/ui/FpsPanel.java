@@ -102,8 +102,8 @@ final class FpsPanel {
 		g.text(r.label, x + 7, y + 4, Colors.alpha(Colors.TEXT, a), false);
 		g.text(g.font.plainSubstrByWidth(r.desc, w - 60), x + 7, y + 13, Colors.alpha(Colors.MUTED, a), false);
 		int sx = x + w - 26, sy = y + (ROW_H - 10) / 2;
-		g.pill(sx, sy, 20, 10, Colors.alpha(on ? Colors.ACCENT : 0xFF2A303C, a));
-		g.rounded(on ? sx + 11 : sx + 1, sy + 1, 8, 8, Colors.alpha(on ? Colors.ON_PILL : 0xFF8B94A5, a));
+		g.pill(sx, sy, 20, 10, Colors.alpha(on ? Colors.ACCENT : 0xFF26262A, a));
+		g.rounded(on ? sx + 11 : sx + 1, sy + 1, 8, 8, Colors.alpha(on ? Colors.ON_PILL : Colors.MUTED, a));
 	}
 
 	private static String capLabel() {

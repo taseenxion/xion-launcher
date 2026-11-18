@@ -107,9 +107,7 @@ public class XionTitleScreen extends BaseScreen {
 
 	@Override
 	protected void draw(Gfx g, int mx, int my, float pt) {
-		Scenery.draw(g, intro(1.4f));
-		// Soft shade behind the menu so it reads over bright peaks.
-		g.hGradient(0, 0, width * 3 / 5, height, 0x9905060A, 0x0005060A);
+		Scenery.draw(g, intro(1.6f));
 
 		float a = intro(0.8f);
 		float rise = (1 - ease(0.15f, 0.7f)) * 8;
@@ -117,7 +115,7 @@ public class XionTitleScreen extends BaseScreen {
 		// Brand, top left
 		g.blit(Ids.LOGO, 14, 10, 16, 16, 0, 0, 256, 256, 256, 256, Colors.alpha(0xFFFFFFFF, a));
 		g.text("Xion", 36, 14, Colors.alpha(Colors.TEXT, a), false);
-		g.text("by Taseen Rahman", 36 + g.font.width("Xion") + 6, 14, Colors.alpha(0xFF8B94A5, a), false);
+		g.text("by Taseen Rahman", 36 + g.font.width("Xion") + 6, 14, Colors.alpha(Colors.DIM, a), false);
 		if (net.xion.client.feature.Pvp.active()) {
 			int tx = 36 + g.font.width("Xion") + 6 + g.font.width("by Taseen Rahman") + 8;
 			g.fill(tx, 12, tx + g.font.width("PVP MODE") + 8, 24, Colors.alpha(Colors.ACCENT, a));
@@ -129,8 +127,14 @@ public class XionTitleScreen extends BaseScreen {
 		float ga = ease(0.15f, 0.7f);
 		g.push();
 		g.translate(0, rise);
-		g.text(net.xion.client.feature.Pvp.active() ? "Ready to fight," : "Welcome back,", menuX, menuTop - 52, Colors.alpha(0xFFAEB6C4, ga), false);
-		g.scaledText(name, menuX, menuTop - 40, 3f, Colors.alpha(0xFFFFFFFF, ga), false);
+		// Status line, greeting and name, stacked like the launcher's Home.
+		g.rounded(menuX, menuTop - 67, 3, 3, Colors.alpha(Colors.ACCENT, ga));
+		g.label(net.xion.client.feature.Pvp.active() ? "Ready to fight" : "Ready to play", menuX + 8, menuTop - 69, Colors.alpha(Colors.MUTED, ga));
+		g.text(net.xion.client.feature.Pvp.active() ? "Ready to fight," : "Welcome back,", menuX, menuTop - 52, Colors.alpha(0xFFA39E96, ga), false);
+		g.scaledText(name, menuX, menuTop - 40, 3f, Colors.alpha(Colors.TEXT, ga), false);
+		// A hairline under the name draws itself in.
+		int nameW = Math.round(g.font.width(name) * 3f * ease(0.35f, 0.9f));
+		g.fill(menuX, menuTop - 12, menuX + nameW, menuTop - 11, Colors.alpha(Colors.LINE_2, ga));
 		g.pop();
 
 		drawButtons(g, mx, my, a);
@@ -138,7 +142,7 @@ public class XionTitleScreen extends BaseScreen {
 		// Quick-join card contents drawn over the card buttons
 		XButton first = serverButtons[0];
 		float ha = ease(first.delay, 0.45f);
-		g.text(net.xion.client.feature.Pvp.active() ? "Arenas" : "Quick join", first.x + 2, first.y - 12, Colors.alpha(0xFF8B94A5, a * ha), false);
+		g.label(net.xion.client.feature.Pvp.active() ? "Arenas" : "Quick join", first.x + 2, first.y - 12, Colors.alpha(Colors.MUTED, a * ha));
 		for (int i = 0; i < SERVERS.length; i++) {
 			XButton b = serverButtons[i];
 			float se = ease(b.delay, 0.45f);
@@ -146,11 +150,10 @@ public class XionTitleScreen extends BaseScreen {
 			g.push();
 			g.translate(b.enterX * (1 - se), 0);
 			float sa = a * se;
-			int col = (int) Long.parseLong(SERVERS[i][3], 16);
-			g.pill(b.x + 4, b.y + 4, 14, 14, Colors.alpha(col, sa));
-			g.text(SERVERS[i][2], b.x + 4 + (14 - g.font.width(SERVERS[i][2])) / 2 + 1, b.y + 7, Colors.alpha(0xFFFFFFFF, sa), false);
-			g.text(SERVERS[i][0], b.x + 24, b.y + 3, Colors.alpha(0xFFFFFFFF, sa), false);
-			g.text(SERVERS[i][1], b.x + 24, b.y + 12, Colors.alpha(0xFF8B94A5, sa), false);
+			g.rounded(b.x + 4, b.y + 4, 14, 14, Colors.alpha(Colors.PILL, sa));
+			g.text(SERVERS[i][2], b.x + 4 + (14 - g.font.width(SERVERS[i][2])) / 2 + 1, b.y + 7, Colors.alpha(Colors.ON_PILL, sa), false);
+			g.text(SERVERS[i][0], b.x + 24, b.y + 3, Colors.alpha(Colors.TEXT, sa), false);
+			g.text(SERVERS[i][1], b.x + 24, b.y + 12, Colors.alpha(Colors.MUTED, sa), false);
 			g.pop();
 		}
 
@@ -158,20 +161,21 @@ public class XionTitleScreen extends BaseScreen {
 		int chipW = g.font.width(name) + 30;
 		int chipX = width - 10 - 20 * 3 - 4 * 2 - 6 - chipW;
 		g.pill(chipX, 8, chipW, 20, Colors.alpha(Colors.GLASS, a));
-		g.pillOutline(chipX, 8, chipW, 20, Colors.alpha(0x1FFFFFFF, a));
+		g.pillOutline(chipX, 8, chipW, 20, Colors.alpha(Colors.LINE_2, a));
 		SkinView.head(g, Ids.skinOf(null), chipX + 5, 12, 12, Colors.alpha(0xFFFFFFFF, a));
-		g.text(name, chipX + 22, 14, Colors.alpha(0xFFFFFFFF, a), false);
+		g.text(name, chipX + 22, 14, Colors.alpha(Colors.TEXT, a), false);
 
 		String ver = "Xion " + XionClient.VERSION + "  ·  Minecraft " + Compat.MC_VERSION;
-		g.text(ver, width - 14 - g.font.width(ver), height - 14, Colors.alpha(0xFF566070, a), false);
+		g.text(ver, width - 14 - g.font.width(ver), height - 14, Colors.alpha(Colors.DIM, a), false);
 
 		// Tooltips last so they sit on top
 		for (XButton b : buttons) {
 			if (b.tooltip != null && b.contains(mx, my)) {
 				int tw = g.font.width(b.tooltip) + 12;
 				int tx = Math.min(mx + 8, width - tw - 2);
-				g.pill(tx, my + 10, tw, 16, 0xF00C0F15);
-				g.text(b.tooltip, tx + 6, my + 14, 0xFFFFFFFF, false);
+				g.pill(tx, my + 10, tw, 16, 0xF20B0B0C);
+				g.pillOutline(tx, my + 10, tw, 16, Colors.LINE_2);
+				g.text(b.tooltip, tx + 6, my + 14, Colors.TEXT, false);
 			}
 		}
 	}

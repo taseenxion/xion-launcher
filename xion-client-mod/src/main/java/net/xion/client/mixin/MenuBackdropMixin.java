@@ -37,7 +37,7 @@ public class MenuBackdropMixin {
 	@Inject(method = "renderDirtBackground", at = @At("HEAD"), cancellable = true)
 	private void xion$backdrop(GuiGraphics g, CallbackInfo ci) {
 		Scenery.draw(new Gfx(g), 1f);
-		g.fill(0, 0, g.guiWidth(), g.guiHeight(), 0x7006080C);
+		g.fill(0, 0, g.guiWidth(), g.guiHeight(), 0x70000000);
 		ci.cancel();
 	}
 	//#elif MC >= 11904
@@ -45,7 +45,7 @@ public class MenuBackdropMixin {
 	private void xion$backdrop(PoseStack pose, CallbackInfo ci) {
 		Gfx gfx = new Gfx(pose);
 		Scenery.draw(gfx, 1f);
-		gfx.fill(0, 0, gfx.width(), gfx.height(), 0x7006080C);
+		gfx.fill(0, 0, gfx.width(), gfx.height(), 0x70000000);
 		ci.cancel();
 	}
 	//#else
@@ -53,7 +53,7 @@ public class MenuBackdropMixin {
 	private void xion$backdrop(int vOffset, CallbackInfo ci) {
 		Gfx gfx = new Gfx(new PoseStack());
 		Scenery.draw(gfx, 1f);
-		gfx.fill(0, 0, gfx.width(), gfx.height(), 0x7006080C);
+		gfx.fill(0, 0, gfx.width(), gfx.height(), 0x70000000);
 		ci.cancel();
 	}
 	//#endif

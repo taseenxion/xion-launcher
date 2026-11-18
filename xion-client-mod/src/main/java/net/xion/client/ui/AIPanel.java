@@ -80,7 +80,7 @@ final class AIPanel {
 		int innerW = Math.max(40, w - PAD * 2);
 
 		// Panel surface and a slow aurora glow behind the conversation.
-		g.pill(x, y, w, h, Colors.alpha(0xD20A0D13, a));
+		g.pill(x, y, w, h, Colors.alpha(0xD20A0A0B, a));
 		g.pillOutline(x, y, w, h, Colors.alpha(0x18FFFFFF, a));
 		float glow = (float) ((Math.sin(now / 2600.0) + 1) / 2);
 		int glowColor = Colors.lerp(Colors.ACCENT, Colors.ACCENT_2, glow);
@@ -137,7 +137,7 @@ final class AIPanel {
 	}
 
 	private void drawHeader(Gfx g, int x, int y, int w, int headH, int mx, int my, long now, float a, int count) {
-		g.fill(x, y, x + w, y + headH, Colors.alpha(0xF20A0D13, a));
+		g.fill(x, y, x + w, y + headH, Colors.alpha(0xF20A0A0B, a));
 		g.fill(x + 1, y + headH - 1, x + w - 1, y + headH, Colors.alpha(0x1EFFFFFF, a));
 		float t = (float) ((Math.sin(now / 1700.0) + 1) / 2);
 		g.hGradient(x + 9, y + headH - 1, w - 18, 1, Colors.alpha(Colors.ACCENT, 0.05f * a),
@@ -285,7 +285,7 @@ final class AIPanel {
 
 		boolean can = input.length() > 0 && !XionAI.busy();
 		boolean overSend = inside(sendRect, mx, my);
-		int sbg = can ? (overSend ? Colors.lerp(Colors.ACCENT, 0xFFFFFFFF, 0.18f) : Colors.ACCENT) : 0xFF232937;
+		int sbg = can ? (overSend ? Colors.lerp(Colors.ACCENT, 0xFFFFFFFF, 0.18f) : Colors.ACCENT) : 0xFF1E1E21;
 		g.pill(sendRect[0], sendRect[1], sendW, inputH, Colors.alpha(sbg, a));
 		int col = Colors.alpha(can ? Colors.ON_PILL : Colors.MUTED, a);
 		int ax = sendRect[0] + 7, ay = inputY + inputH / 2;

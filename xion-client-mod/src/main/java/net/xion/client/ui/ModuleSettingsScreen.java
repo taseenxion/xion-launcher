@@ -90,7 +90,7 @@ public class ModuleSettingsScreen extends BaseScreen {
 	protected void draw(Gfx g, int mx, int my, float pt) {
 		float a = intro(0.3f);
 		panorama(g);
-		g.fill(0, 0, width, height, Colors.alpha(0x8006080C, a));
+		g.fill(0, 0, width, height, Colors.alpha(0x80000000, a));
 		float s = 0.94f + 0.06f * ease(0f, 0.35f);
 		g.push();
 		g.translate(width / 2f * (1 - s), height / 2f * (1 - s));
@@ -120,7 +120,7 @@ public class ModuleSettingsScreen extends BaseScreen {
 			boolean sel = !st.chroma && st.color == c;
 			if (sel) g.pillOutline(x - 2, swY - 2, SW + 4, SW + 4, Colors.alpha(0xFFFFFFFF, a));
 			g.pill(x, swY, SW, SW, Colors.alpha(c, a * (locked ? 0.35f : 1f)));
-			if (locked) g.fill(x + 5, swY + 6, x + 9, swY + 9, Colors.alpha(0xFF0B0D12, a));
+			if (locked) g.fill(x + 5, swY + 6, x + 9, swY + 9, Colors.alpha(0xFF0A0A0A, a));
 		}
 		if (!Premium.active()) {
 			String hint = "Custom colours & chroma: Xion+";

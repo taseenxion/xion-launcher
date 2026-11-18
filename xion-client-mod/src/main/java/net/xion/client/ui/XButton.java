@@ -23,6 +23,7 @@ public class XButton {
 	public float delay;
 	public float enterX = -18, enterY;
 	private float hover;
+	private long lastDraw;
 
 	public XButton enter(float delay, float fromX, float fromY) {
 		this.delay = delay;
@@ -66,42 +67,48 @@ public class XButton {
 
 	public void draw(Gfx g, int mx, int my, float a) {
 		if (!visible) return;
-		hover += ((contains(mx, my) ? 1f : 0f) - hover) * 0.25f;
+		// Frame-rate independent ease toward the hover state.
+		long now = System.nanoTime();
+		float dt = lastDraw == 0 ? 0.016f : Math.min(0.1f, (now - lastDraw) / 1e9f);
+		lastDraw = now;
+		hover += ((contains(mx, my) ? 1f : 0f) - hover) * (1f - (float) Math.exp(-dt * 14f));
 		int textColor;
 		switch (style) {
 			case PRIMARY, ACCENT -> {
-				// Light pill with dark text; a faint halo grows on hover.
-				if (hover > 0.02f) g.pillOutline(x - 1, y - 1, w + 2, h + 2, Colors.alpha(0x40FFFFFF, a * hover));
+				// Ivory slab with near-black text, brightening to white on hover.
 				g.pill(x, y, w, h, Colors.alpha(Colors.lerp(Colors.PILL, 0xFFFFFFFF, hover), a));
 				textColor = Colors.ON_PILL;
 			}
-			case TEXT -> textColor = Colors.lerp(Colors.MUTED, Colors.TEXT, hover);
+			case TEXT -> {
+				textColor = Colors.lerp(Colors.MUTED, Colors.TEXT, hover);
+				// A hairline draws itself under the label on hover.
+				int lw = Math.round((g.font.width(label) + (icon == Icon.NONE ? 0 : 14)) * hover);
+				if (lw > 0) g.fill(x + 9, y + h - 2, x + 9 + lw, y + h - 1, Colors.alpha(Colors.LINE_2, a));
+			}
 			case TAB -> {
 				if (selected) {
-					g.pill(x, y, w, h, Colors.alpha(Colors.lerp(Colors.CARD, Colors.ACCENT, 0.24f), a));
-					g.pillOutline(x, y, w, h, Colors.alpha(Colors.ACCENT, 0.55f * a));
-					g.fill(x, y + 3, x + 2, y + h - 3, Colors.alpha(Colors.ACCENT, 0.95f * a));
-					g.rounded(x + w - 7, y + h / 2 - 1, 2, 2, Colors.alpha(Colors.ACCENT, a));
+					g.pill(x, y, w, h, Colors.alpha(0x14ECE7DF, a));
+					g.fill(x, y + 4, x + 1, y + h - 4, Colors.alpha(Colors.ACCENT, a));
 					textColor = Colors.TEXT;
 				} else {
-					if (hover > 0.02f) g.pill(x, y, w, h, Colors.alpha(0x1EFFFFFF, a * hover));
+					if (hover > 0.02f) g.pill(x, y, w, h, Colors.alpha(0x0CECE7DF, a * hover));
 					textColor = Colors.lerp(Colors.MUTED, Colors.TEXT, hover);
 				}
 			}
 			case DANGER -> {
-				g.pill(x, y, w, h, Colors.alpha(Colors.lerp(Colors.GLASS, 0xC0461A24, hover), a));
-				g.pillOutline(x, y, w, h, Colors.alpha(Colors.lerp(0x1FFFFFFF, 0x55FF9AA8, hover), a));
+				g.pill(x, y, w, h, Colors.alpha(Colors.lerp(Colors.GLASS, 0xCC3A1418, hover), a));
+				g.pillOutline(x, y, w, h, Colors.alpha(Colors.lerp(0x33FF9AA8, 0x66FF9AA8, hover), a));
 				textColor = Colors.lerp(0xFFFF9AA8, 0xFFFFFFFF, hover);
 			}
 			default -> {
-				// Dark glass pill (SLAB, GLASS, ICON) whose edge brightens on hover.
+				// Near-black slab (SLAB, GLASS, ICON) with a hairline that brightens on hover.
 				g.pill(x, y, w, h, Colors.alpha(Colors.lerp(Colors.GLASS, Colors.GLASS_HOVER, hover), a));
-				g.pillOutline(x, y, w, h, Colors.alpha(Colors.lerp(0x1FFFFFFF, 0x55FFFFFF, hover), a));
-				textColor = Colors.lerp(0xFFD5DAE3, 0xFFFFFFFF, hover);
+				g.pillOutline(x, y, w, h, Colors.alpha(Colors.lerp(Colors.LINE_2, 0x66ECE7DF, hover), a));
+				textColor = Colors.lerp(0xFFCFCAC2, Colors.TEXT, hover);
 			}
 		}
 		int tc = Colors.alpha(textColor, a);
-		int iconTint = style == Style.TAB && selected ? Colors.ACCENT : textColor;
+		int iconTint = textColor;
 		int ic = Colors.alpha(iconTint, a);
 		if (style == Style.ICON) {
 			drawIcon(g, icon, x + (w - 9) / 2, y + (h - 9) / 2, tc);

@@ -70,7 +70,7 @@ public final class WidgetSkin {
 					argb = 0;
 				} else if (edgeX || edgeY) {
 					argb = switch (state) {
-						case 2 -> 0x99E9EEF7;
+						case 2 -> 0x99ECE7DF;
 						case 1 -> 0x26FFFFFF;
 						default -> 0x12FFFFFF;
 					};
@@ -87,9 +87,9 @@ public final class WidgetSkin {
 	private static int base(int state, int y, int h) {
 		float t = y / (float) Math.max(1, h - 1);
 		return switch (state) {
-			case 2 -> lerp(0xE41E2432, 0xE4161A24, t);
-			case 1 -> lerp(0xC80F1218, 0xC80A0C11, t);
-			default -> 0x900B0D12;
+			case 2 -> lerp(0xE41A1A1D, 0xE4131315, t);
+			case 1 -> lerp(0xC80E0E10, 0xC8090909, t);
+			default -> 0x900A0A0A;
 		};
 	}
 

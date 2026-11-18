@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Generates the Xion ("Nightfall") look for vanilla menus as a built-in resource pack (all art drawn here):
+// Generates the Xion ("Event Horizon") look for vanilla menus as a built-in resource pack (all art drawn here):
 // widget sprites (1.20.2+) and menu backgrounds (all versions).
 // Usage: node tools/make-textures.js
 const fs = require('fs')
@@ -59,7 +59,7 @@ function slab (w, h, { fill, border, highlight, shadow, sheen }) {
   return c
 }
 
-const MOON = hex('#e9eef7'), ACCENT = hex('#c9d6ff')
+const MOON = hex('#ece7df'), ACCENT = hex('#ece7df')
 
 const files = {}
 const sprite = (name, c, mcmeta) => {
@@ -70,33 +70,33 @@ const nine = (w, h, border) => ({ type: 'nine_slice', width: w, height: h, borde
 
 // Buttons (200x20): dark glass, the edge lights up in moonlight on hover.
 sprite('button', slab(200, 20, {
-  fill: (x, y) => mix(hex('#10131a', 200), hex('#0a0c11', 200), y / 19),
+  fill: (x, y) => mix(hex('#0e0e10', 200), hex('#09090a', 200), y / 19),
   border: hex('#ffffff', 34),
   highlight: hex('#ffffff', 10)
 }), nine(200, 20, 3))
 sprite('button_highlighted', slab(200, 20, {
-  fill: (x, y) => mix(hex('#1e2432', 228), hex('#161a24', 228), y / 19),
-  border: hex('#e9eef7', 150),
+  fill: (x, y) => mix(hex('#1a1a1d', 228), hex('#131315', 228), y / 19),
+  border: hex('#ece7df', 150),
   highlight: hex('#ffffff', 22)
 }), nine(200, 20, 3))
 sprite('button_disabled', slab(200, 20, {
-  fill: hex('#0b0d12', 140),
+  fill: hex('#0a0a0a', 140),
   border: hex('#ffffff', 16)
 }), nine(200, 20, 3))
 
 // Slider track (200x20) and handle (8x20)
 sprite('slider', slab(200, 20, {
-  fill: (x, y) => mix(hex('#0d1016', 200), hex('#090b0f', 200), y / 19),
+  fill: (x, y) => mix(hex('#0d0d0f', 200), hex('#080809', 200), y / 19),
   border: hex('#ffffff', 30),
-  sheen: (x, y) => (y === 9 || y === 10) && x > 3 && x < 196 ? hex('#c9d6ff', 26) : [0, 0, 0, 0]
+  sheen: (x, y) => (y === 9 || y === 10) && x > 3 && x < 196 ? hex('#ece7df', 26) : [0, 0, 0, 0]
 }), nine(200, 20, 3))
 sprite('slider_highlighted', slab(200, 20, {
-  fill: (x, y) => mix(hex('#161b26', 220), hex('#0f121a', 220), y / 19),
-  border: hex('#e9eef7', 120),
-  sheen: (x, y) => (y === 9 || y === 10) && x > 3 && x < 196 ? hex('#c9d6ff', 60) : [0, 0, 0, 0]
+  fill: (x, y) => mix(hex('#161618', 220), hex('#0f0f11', 220), y / 19),
+  border: hex('#ece7df', 120),
+  sheen: (x, y) => (y === 9 || y === 10) && x > 3 && x < 196 ? hex('#ece7df', 60) : [0, 0, 0, 0]
 }), nine(200, 20, 3))
 const handle = hot => slab(8, 20, {
-  fill: (x, y) => mix(hot ? hex('#ffffff') : MOON, hot ? hex('#c9d6ff') : hex('#aab6cc'), y / 19),
+  fill: (x, y) => mix(hot ? hex('#ffffff') : MOON, hot ? hex('#ece7df') : hex('#b9b3aa'), y / 19),
   border: hex('#ffffff', hot ? 255 : 210),
   highlight: hex('#ffffff', 140)
 })
@@ -104,11 +104,11 @@ sprite('slider_handle', handle(false), nine(8, 20, 2))
 sprite('slider_handle_highlighted', handle(true), nine(8, 20, 2))
 
 // Text fields (200x20)
-sprite('text_field', slab(200, 20, { fill: hex('#07090d', 225), border: hex('#ffffff', 40) }), nine(200, 20, 1))
-sprite('text_field_highlighted', slab(200, 20, { fill: hex('#0a0d12', 235), border: hex('#c9d6ff', 170) }), nine(200, 20, 1))
+sprite('text_field', slab(200, 20, { fill: hex('#070708', 225), border: hex('#ffffff', 40) }), nine(200, 20, 1))
+sprite('text_field_highlighted', slab(200, 20, { fill: hex('#0a0a0b', 235), border: hex('#ece7df', 170) }), nine(200, 20, 1))
 
 // Scroller (6x32)
-sprite('scroller', slab(6, 32, { fill: (x, y) => mix(MOON, hex('#aab6cc'), y / 31), border: hex('#ffffff', 200) }), nine(6, 32, 1))
+sprite('scroller', slab(6, 32, { fill: (x, y) => mix(MOON, hex('#b9b3aa'), y / 31), border: hex('#ffffff', 200) }), nine(6, 32, 1))
 sprite('scroller_background', slab(6, 32, { fill: hex('#000000', 90), border: hex('#ffffff', 16) }), nine(6, 32, 1))
 
 // ---------- menu backgrounds ----------
@@ -121,12 +121,12 @@ function tile (size, base, alphaBase, seed) {
 }
 const putTile = (name, c) => { files[name] = png(c.w, c.h, c.px) }
 // <= 1.20.4: list backgrounds (vanilla tints it darker); the screen itself shows the Xion scenery.
-putTile('options_background.png', tile(16, ['#2b3140', '#262c3a'], 255, 1))
+putTile('options_background.png', tile(16, ['#29292c', '#232326'], 255, 1))
 // 1.20.5+: translucent washes over the blurred scenery / world
-putTile('menu_background.png', tile(32, ['#080a0f', '#0a0c12'], 120, 2))
-putTile('inworld_menu_background.png', tile(32, ['#080a0f', '#0a0c12'], 110, 3))
-putTile('menu_list_background.png', tile(32, ['#05060a', '#06080c'], 90, 4))
-putTile('inworld_menu_list_background.png', tile(32, ['#05060a', '#06080c'], 80, 5))
+putTile('menu_background.png', tile(32, ['#080808', '#0a0a0b'], 120, 2))
+putTile('inworld_menu_background.png', tile(32, ['#080808', '#0a0a0b'], 110, 3))
+putTile('menu_list_background.png', tile(32, ['#050505', '#060606'], 90, 4))
+putTile('inworld_menu_list_background.png', tile(32, ['#050505', '#060606'], 80, 5))
 const separator = (top) => {
   const c = canvas(32, 2)
   for (let x = 0; x < 32; x++) {

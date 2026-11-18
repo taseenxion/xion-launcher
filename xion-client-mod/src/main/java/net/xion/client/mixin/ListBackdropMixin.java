@@ -43,7 +43,7 @@ public abstract class ListBackdropMixin {
 		if (!xion$scenery || Minecraft.getInstance().level != null) return;
 		Gfx gfx = new Gfx(g);
 		Scenery.draw(gfx, 1f);
-		gfx.fill(0, 0, gfx.width(), gfx.height(), 0x7006080C);
+		gfx.fill(0, 0, gfx.width(), gfx.height(), 0x70000000);
 	}
 	//#else
 	@Inject(method = "render", at = @At("HEAD"), require = 0)
@@ -51,7 +51,7 @@ public abstract class ListBackdropMixin {
 		if (!xion$scenery || Minecraft.getInstance().level != null) return;
 		Gfx gfx = new Gfx(pose);
 		Scenery.draw(gfx, 1f);
-		gfx.fill(0, 0, gfx.width(), gfx.height(), 0x7006080C);
+		gfx.fill(0, 0, gfx.width(), gfx.height(), 0x70000000);
 	}
 	//#endif
 //#endif

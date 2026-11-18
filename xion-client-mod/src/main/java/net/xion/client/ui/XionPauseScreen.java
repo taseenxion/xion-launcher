@@ -71,9 +71,9 @@ public class XionPauseScreen extends BaseScreen {
 	protected void draw(Gfx g, int mx, int my, float pt) {
 		float a = intro(0.35f);
 		// Dim the world with a soft vignette toward the edges.
-		g.fill(0, 0, width, height, Colors.alpha(0x6606080C, a));
-		g.vGradient(0, 0, width, height / 3, Colors.alpha(0x8006080C, a), 0x0006080C);
-		g.vGradient(0, height * 2 / 3, width, height / 3, 0x0006080C, Colors.alpha(0x9906080C, a));
+		g.fill(0, 0, width, height, Colors.alpha(0x66000000, a));
+		g.vGradient(0, 0, width, height / 3, Colors.alpha(0x80000000, a), 0x00000000);
+		g.vGradient(0, height * 2 / 3, width, height / 3, 0x00000000, Colors.alpha(0x99000000, a));
 
 		// Card springs in: scale 0.9 -> 1 with a slight overshoot, rising a few pixels.
 		float t = ease(0f, 0.45f);
@@ -87,7 +87,7 @@ public class XionPauseScreen extends BaseScreen {
 
 		// shadow + glass card
 		g.pill(px - 2, py + 3, pw + 4, ph + 4, Colors.alpha(0x50000000, a));
-		g.pill(px, py, pw, ph, Colors.alpha(0xEE0C0F15, a));
+		g.pill(px, py, pw, ph, Colors.alpha(0xEE0B0B0C, a));
 		g.pillOutline(px, py, pw, ph, Colors.alpha(0x26FFFFFF, a));
 		// accent hairline across the top
 		g.hGradient(px + 16, py + 1, pw - 32, 1, Colors.alpha(Colors.ACCENT, 0.0f), Colors.alpha(Colors.ACCENT, 0.9f * a));
@@ -118,7 +118,7 @@ public class XionPauseScreen extends BaseScreen {
 			for (String c : chips) {
 				if (c.isEmpty()) continue;
 				int cw = g.font.width(c) + 16;
-				g.pill(x, y, cw, 16, Colors.alpha(0xC00C0F15, ce));
+				g.pill(x, y, cw, 16, Colors.alpha(0xC00B0B0C, ce));
 				g.pillOutline(x, y, cw, 16, Colors.alpha(0x1AFFFFFF, ce));
 				g.text(c, x + 8, y + 4, Colors.alpha(Colors.TEXT, ce), false);
 				x += cw + 6;
@@ -127,7 +127,7 @@ public class XionPauseScreen extends BaseScreen {
 		}
 
 		String ver = "Xion " + XionClient.VERSION + "  ·  Minecraft " + Compat.MC_VERSION;
-		g.text(ver, width - g.font.width(ver) - 10, 8, Colors.alpha(0xFF8B94A5, a), false);
+		g.text(ver, width - g.font.width(ver) - 10, 8, Colors.alpha(Colors.MUTED, a), false);
 	}
 
 	private String sessionLine() {

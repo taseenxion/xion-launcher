@@ -336,8 +336,8 @@ final class ModsPanel {
 		String count = all.size() + " installed";
 		g.text(count, x + w - g.font.width(count), y + 6, Colors.alpha(Colors.MUTED, a), false);
 		ModsLayout.Rect r = new ModsLayout.Rect(x, y + 26, w, 24);
-		g.pill(r.x(), r.y(), r.w(), r.h(), Colors.alpha(searchFocused ? 0xFF1C2535 : 0xFF141B28, a));
-		g.pillOutline(r.x(), r.y(), r.w(), r.h(), Colors.alpha(searchFocused ? Colors.ACCENT : 0x28FFFFFF, searchFocused ? 0.65f * a : a));
+		g.pill(r.x(), r.y(), r.w(), r.h(), Colors.alpha(searchFocused ? 0xFF121214 : 0xFF0C0C0E, a));
+		g.pillOutline(r.x(), r.y(), r.w(), r.h(), Colors.alpha(searchFocused ? 0x80ECE7DF : Colors.LINE_2, a));
 		// Magnifier, sized for Minecraft's pixel grid.
 		g.pillOutline(x + 9, y + 33, 7, 7, Colors.alpha(Colors.MUTED, a));
 		g.fill(x + 15, y + 39, x + 18, y + 40, Colors.alpha(Colors.MUTED, a));
@@ -366,9 +366,9 @@ final class ModsPanel {
 			boolean on = f == filter, over = new ModsLayout.Rect(cx, cy, chipW, 16).contains(mx, my);
 			String label = switch (f) { case ALL -> "All"; case PACK -> "Xion"; case ADDED -> "Added"; case CHANGES -> "Changes"; };
 			if (w >= 400) label += "  " + count(f);
-			g.pill(cx, cy, chipW, 16, Colors.alpha(on ? Colors.lerp(0xFF182133, Colors.ACCENT, 0.2f) : over ? 0xFF202939 : 0xFF151C28, a));
-			g.pillOutline(cx, cy, chipW, 16, Colors.alpha(on ? Colors.ACCENT : 0x1BFFFFFF, on ? 0.5f * a : a));
-			g.centeredText(fit(g, label, chipW - 6), cx + chipW / 2f, cy + 4, 1f, Colors.alpha(on ? Colors.TEXT : Colors.MUTED, a), false);
+			g.pill(cx, cy, chipW, 16, Colors.alpha(on ? Colors.PILL : over ? 0xFF17171A : 0xFF0E0E10, a));
+			g.pillOutline(cx, cy, chipW, 16, Colors.alpha(on ? Colors.PILL : Colors.LINE_2, a));
+			g.centeredText(fit(g, label, chipW - 6), cx + chipW / 2f, cy + 4, 1f, Colors.alpha(on ? Colors.ON_PILL : Colors.MUTED, a), false);
 		}
 	}
 
@@ -384,10 +384,9 @@ final class ModsPanel {
 		e.switchAmount += ((on ? 1 : 0) - e.switchAmount) * Math.min(1, dt * 18);
 		if (enter > 0.75f) hits.add(new Hit(e, controls));
 		if (over) hovered = e;
-		g.pill(x, y, w, CARD_H, Colors.alpha(Colors.lerp(0xFF151C29, 0xFF1D283B, e.hover), ca));
-		g.pillOutline(x, y, w, CARD_H, Colors.alpha(e == selected ? Colors.ACCENT : Colors.lerp(0x24FFFFFF, Colors.ACCENT, e.hover * 0.6f), ca));
-		g.vGradient(x + 2, y + 1, w - 4, 30, Colors.alpha(Colors.ACCENT, (0.025f + e.hover * 0.04f) * ca), 0x00FFFFFF);
-		g.pill(x + 10, y + 9, 32, 32, Colors.alpha(0xFF0D1420, ca));
+		g.pill(x, y, w, CARD_H, Colors.alpha(Colors.lerp(Colors.CARD, Colors.CARD_HOVER, e.hover), ca));
+		g.pillOutline(x, y, w, CARD_H, Colors.alpha(e == selected ? Colors.ACCENT : Colors.lerp(Colors.LINE, 0x55ECE7DF, e.hover), ca));
+		g.pill(x + 10, y + 9, 32, 32, Colors.alpha(0xFF070708, ca));
 		int color = Colors.alpha(on ? 0xFFFFFFFF : Colors.MUTED, ca);
 		if (e.xion) g.blit(Ids.LOGO, x + 12, y + 11, 28, 28, 0, 0, 256, 256, 256, 256, color);
 		else {
@@ -408,17 +407,17 @@ final class ModsPanel {
 			g.pillOutline(toggle.x() + 8, toggle.y(), 7, 6, Colors.alpha(Colors.MUTED, ca));
 			g.rounded(toggle.x() + 6, toggle.y() + 5, 11, 7, Colors.alpha(Colors.MUTED, 0.6f * ca));
 		} else {
-			g.pill(toggle.x(), toggle.y(), toggle.w(), toggle.h(), Colors.alpha(Colors.lerp(0xFF343E50, Colors.ACCENT, e.switchAmount), ca));
-			g.pill(toggle.x() + 2 + Math.round(e.switchAmount * 12), toggle.y() + 2, 8, 8, Colors.alpha(on ? 0xFFFFFFFF : 0xFFABB5C7, ca));
+			g.pill(toggle.x(), toggle.y(), toggle.w(), toggle.h(), Colors.alpha(Colors.lerp(0xFF26262A, Colors.PILL, e.switchAmount), ca));
+			g.pill(toggle.x() + 2 + Math.round(e.switchAmount * 12), toggle.y() + 2, 8, 8, Colors.alpha(Colors.lerp(Colors.MUTED, Colors.ON_PILL, e.switchAmount), ca));
 		}
-		int stateColor = pending ? Colors.GOLD : locked ? Colors.ACCENT : on ? Colors.OK : Colors.MUTED;
+		int stateColor = pending ? Colors.GOLD : locked ? Colors.MUTED : on ? Colors.OK : Colors.DIM;
 		String state = pending ? on ? "Enable next" : "Disable next" : locked ? "Required" : on ? "Active" : "Disabled";
 		g.rounded(x + 12, y + 67, 3, 3, Colors.alpha(stateColor, ca));
 		g.scaledText(fit(g, state, (int) ((w - 112) / 0.85f)), x + 20, y + 65, 0.85f, Colors.alpha(stateColor, ca), false);
 		boolean hasConfig = e.xion || e.config != null, configOver = hasConfig && settings.contains(mx, my) && over;
-		g.pill(settings.x(), settings.y(), settings.w(), settings.h(), Colors.alpha(hasConfig ? configOver ? 0xFF334465 : 0xFF24324B : 0xFF192232, ca));
-		g.pillOutline(settings.x(), settings.y(), settings.w(), settings.h(), Colors.alpha(hasConfig ? Colors.ACCENT : 0x20FFFFFF, (configOver ? 0.65f : 0.2f) * ca));
-		XButton.drawIcon(g, XButton.Icon.GEAR, settings.x() + 8, settings.y() + 5, Colors.alpha(hasConfig ? Colors.ACCENT : Colors.MUTED, ca));
+		g.pill(settings.x(), settings.y(), settings.w(), settings.h(), Colors.alpha(hasConfig ? configOver ? 0xFF1E1E21 : 0xFF141416 : 0xFF0E0E10, ca));
+		g.pillOutline(settings.x(), settings.y(), settings.w(), settings.h(), Colors.alpha(hasConfig ? configOver ? 0x80ECE7DF : Colors.LINE_2 : Colors.LINE, ca));
+		XButton.drawIcon(g, XButton.Icon.GEAR, settings.x() + 8, settings.y() + 5, Colors.alpha(hasConfig ? Colors.TEXT : Colors.DIM, ca));
 		g.text(hasConfig ? "Settings" : "No config", settings.x() + 22, settings.y() + 5, Colors.alpha(hasConfig ? Colors.TEXT : Colors.MUTED, ca), false);
 	}
 

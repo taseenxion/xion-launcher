@@ -1,23 +1,28 @@
 package net.xion.client.compat;
 
-/** Xion palette ("Nightfall": moonlight on charcoal) and ARGB helpers. */
+/** Xion palette ("Event Horizon", same as the launcher): ivory on black, one theme accent. */
 public final class Colors {
 	/** Theme accents: set from the launcher theme at startup (Nightfall moonlight by default). */
 	public static int ACCENT = 0xFFC9D6FF;
 	public static int ACCENT_2 = 0xFF8FB3FF;
 	public static final int GOLD = 0xFFF5C86B;
-	public static final int TEXT = 0xFFE8ECF2;
-	public static final int MUTED = 0xFF8B94A5;
-	public static final int PANEL = 0xEE0C0F15;
-	public static final int CARD = 0xFF141821;
-	public static final int CARD_HOVER = 0xFF1C2230;
+	/** Warm ivory text, and the two greys under it. */
+	public static final int TEXT = 0xFFECE7DF;
+	public static final int MUTED = 0xFF8F8A82;
+	public static final int DIM = 0xFF57534D;
+	/** Hairlines: the structure of every panel instead of glows and gradients. */
+	public static final int LINE = 0x17ECE7DF;
+	public static final int LINE_2 = 0x2EECE7DF;
+	public static final int PANEL = 0xF2070708;
+	public static final int CARD = 0xFF0E0E10;
+	public static final int CARD_HOVER = 0xFF17171A;
 	public static final int OK = 0xFF6EE7A8;
 	public static final int BAD = 0xFFFF7A8A;
-	/** Light pill used for primary actions, with dark text on top. */
-	public static final int PILL = 0xFFE9EEF7;
-	public static final int ON_PILL = 0xFF0B0D12;
-	public static final int GLASS = 0x8C0D1016;
-	public static final int GLASS_HOVER = 0xC01C2230;
+	/** Ivory slab used for primary actions, with near-black text on top. */
+	public static final int PILL = 0xFFECE7DF;
+	public static final int ON_PILL = 0xFF0A0A0A;
+	public static final int GLASS = 0xB3070708;
+	public static final int GLASS_HOVER = 0xD9121214;
 
 	private Colors() {}
 

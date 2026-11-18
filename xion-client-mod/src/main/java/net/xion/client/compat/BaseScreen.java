@@ -115,7 +115,7 @@ public abstract class BaseScreen extends Screen {
 	/** Menu background: the Xion mountain scenery (a soft dark wash over the world when in game). */
 	protected void panorama(Gfx g) {
 		if (minecraft.level != null) {
-			g.fill(0, 0, width, height, 0xA006080C);
+			g.fill(0, 0, width, height, 0xA0000000);
 			return;
 		}
 		net.xion.client.ui.Scenery.draw(g, 1f);

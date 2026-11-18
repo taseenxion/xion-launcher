@@ -25,7 +25,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 
 public class XionClient implements ClientModInitializer {
 	public static final String MOD_ID = "xionclient";
-	public static final String VERSION = "1.27.1";
+	public static final String VERSION = "2.2.0";
 	private static final int KEY_RIGHT_SHIFT = 344;
 
 	private static KeyMapping menuKey;
@@ -109,7 +109,8 @@ public class XionClient implements ClientModInitializer {
 		// Add -Dxionclient.preview.capture=true to save a real in-game screenshot (no AI request).
 		String review = System.getProperty("xionclient.preview.tab", "");
 		if (!review.isEmpty()) {
-			if (previewTicks == 40) Compat.setScreen(new XionMenuScreen(null, XionMenuScreen.Tab.valueOf(review)));
+			// TITLE reviews the main menu itself; any other value opens that Xion menu tab.
+			if (previewTicks == 40 && !review.equals("TITLE")) Compat.setScreen(new XionMenuScreen(null, XionMenuScreen.Tab.valueOf(review)));
 			String cape = System.getProperty("xionclient.preview.cape", "");
 			if (!cape.isEmpty() && previewTicks >= 40) {
 				if (previewTicks == 40) net.xion.client.feature.Cosmetics.select(cape);
