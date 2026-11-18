@@ -233,11 +233,16 @@ app.whenReady().then(() => {
   handle('modrinth:install', async (id, projectId) => modrinth.install(modsDir(id), projectId, await gameOf(id), l => send('launch:log', l)))
   handle('modrinth:uninstall', (id, projectId) => modrinth.uninstall(modsDir(id), projectId))
 
+  // Only the plain preferences the Settings page edits. Account, licence, cape and theme state have
+  // their own handlers; a stale copy from the window must never overwrite them (it used to sign
+  // players out of their Xion account and undo cape picks and licence activations).
+  const EDITABLE = ['memoryMax', 'memoryMin', 'width', 'height', 'fullscreen', 'closeOnLaunch', 'showSnapshots', 'showOld',
+    'xionPack', 'xionPackPvp', 'javaPath', 'jvmArgs', 'gameRoot', 'perfMode', 'onboarded']
   handle('settings:save', s => {
     const d = store.get()
-    d.settings = { ...d.settings, ...s }
+    for (const k of EDITABLE) if (s && Object.prototype.hasOwnProperty.call(s, k)) d.settings[k] = s[k]
     store.save()
-    return d.settings
+    return { ...d.settings, xion: xionPublic() }
   })
   // Themes + Xion+ (account entitlement, or a legacy license key)
   handle('themes:list', () => {

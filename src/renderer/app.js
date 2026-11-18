@@ -933,10 +933,17 @@ function renderSettings () {
 }
 
 let saveTmr
+let savePatch = {}
+// Sends only what changed since the last save, so values the main process updated meanwhile stay.
 function saveSettings (patch) {
   Object.assign(state.settings, patch)
+  Object.assign(savePatch, patch)
   clearTimeout(saveTmr)
-  saveTmr = setTimeout(() => xion.call('settings:save', state.settings), 300)
+  saveTmr = setTimeout(() => {
+    const p = savePatch
+    savePatch = {}
+    xion.call('settings:save', p).catch(e => console.error(e))
+  }, 300)
 }
 $('#memMax').addEventListener('input', e => {
   const v = +e.target.value

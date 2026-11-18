@@ -36,13 +36,13 @@ async function readBytes (key) {
 }
 const writeBytes = (key, buf, contentType) => put(key, contentType + ';' + Buffer.from(buf).toString('base64'), { ...WRITE, contentType: 'text/plain' })
 
-// Every key under a prefix, as [{ pathname }] (same shape the callers already use).
+// Every key under a prefix, as [{ pathname, url, uploadedAt }] (uploadedAt in ms).
 async function listAll (prefix) {
   const out = []
   let cursor
   do {
     const page = await list({ prefix, limit: 1000, cursor, access: 'private' })
-    for (const b of page.blobs) out.push({ pathname: b.pathname, url: b.url })
+    for (const b of page.blobs) out.push({ pathname: b.pathname, url: b.url, uploadedAt: +new Date(b.uploadedAt) || 0 })
     cursor = page.hasMore ? page.cursor : undefined
   } while (cursor)
   return out
@@ -62,4 +62,7 @@ async function del (keys) {
   return urls.length
 }
 
-module.exports = { readJSON, writeJSON, readBytes, writeBytes, listAll, del }
+// Deletes blobs whose URLs are already known (from listAll), without a lookup per key.
+const delUrls = urls => (urls.length ? blobDel(urls, { access: 'private' }).catch(() => {}) : Promise.resolve())
+
+module.exports = { readJSON, writeJSON, readBytes, writeBytes, listAll, del, delUrls }
